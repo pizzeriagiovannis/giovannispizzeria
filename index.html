@@ -334,6 +334,73 @@ select option{background:var(--bg3);}
 .cierre-total-row{display:flex;justify-content:space-between;padding:10px 14px;font-weight:800;font-size:14px;}
 .cierre-panel-mp .cierre-total-row{background:#0f1f3a;color:#3b82f6;}
 .cierre-panel-ef .cierre-total-row{background:#0a1f0f;color:#22c55e;}
+
+/* ─── MOBILE DELIVERY ─── */
+@media(max-width:600px){
+  .app-wrap{flex-direction:column;}
+  .sidebar{
+    width:100%;height:auto;flex-direction:row;flex-wrap:wrap;
+    padding:8px;gap:4px;position:sticky;top:0;z-index:100;
+    border-right:none;border-bottom:2px solid var(--border);
+  }
+  .sb-logo{width:100%;padding-bottom:8px;margin-bottom:0;}
+  .sb-section{display:none;}
+  .nb{padding:8px 12px;font-size:13px;flex:0 0 auto;}
+  .sb-user{margin:0;padding:6px 10px;font-size:11px;}
+  .btn-out{margin:0;padding:8px 12px;font-size:12px;width:auto;}
+  .main-area{height:auto;min-height:calc(100vh - 120px);}
+  .topbar{padding:8px 14px;height:auto;flex-wrap:wrap;}
+  .tb-title{font-size:15px;}
+  .page-body{padding:10px 12px !important;max-width:100% !important;}
+
+  /* Delivery cards mobile */
+  .del-mobile-card{
+    background:var(--bg2);border-radius:14px;margin-bottom:12px;
+    overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.3);
+    border:2px solid var(--border);
+  }
+  .del-mobile-card.pendiente{border-color:#f59e0b;}
+  .del-mobile-card.entregado-card{border-color:#22c55e;}
+  .del-mobile-status{
+    padding:10px 16px;font-size:13px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.05em;
+    display:flex;align-items:center;gap:8px;
+  }
+  .del-mobile-status.pendiente{background:#451a03;color:#fbbf24;border-left:5px solid #f59e0b;}
+  .del-mobile-status.entregado{background:#052e16;color:#86efac;border-left:5px solid #22c55e;}
+  .del-mobile-body{padding:14px 16px;}
+  .del-mobile-dir{font-size:18px;font-weight:800;color:#fff;margin-bottom:4px;}
+  .del-mobile-det{font-size:13px;color:#888;margin-bottom:10px;line-height:1.6;}
+  .del-mobile-total{font-size:22px;font-weight:900;margin-bottom:6px;}
+  .del-mobile-total.cobrar{color:#ef4444;}
+  .del-mobile-total.pagado{color:#22c55e;}
+  .del-mobile-pago{font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;display:inline-block;margin-bottom:12px;}
+  .del-mobile-pago.mp{background:#1d4ed8;color:#93c5fd;}
+  .del-mobile-pago.ef{background:#166534;color:#86efac;}
+  .del-mobile-pago.dom{background:#991b1b;color:#fca5a5;}
+  .del-mobile-btn{
+    width:100%;padding:14px;border:none;border-radius:10px;
+    font-size:15px;font-weight:800;cursor:pointer;
+    font-family:'Outfit',sans-serif;text-transform:uppercase;letter-spacing:.03em;
+    margin-bottom:6px;
+  }
+  .del-mobile-btn-entregar{background:#22c55e;color:#fff;}
+  .del-mobile-btn-rendir{background:#f59e0b;color:#000;}
+  .del-mobile-prods{font-size:12px;color:#666;margin-bottom:10px;line-height:1.6;}
+
+  /* Rendir mobile */
+  .rendir-mobile-total{
+    font-size:48px;font-weight:900;color:#fff;
+    text-align:center;padding:24px 16px;
+    background:var(--red-bg);border-radius:14px;
+    margin-bottom:16px;border:2px solid var(--red-border);
+  }
+  .rendir-mobile-btn{
+    width:100%;padding:18px;border:none;border-radius:12px;
+    font-size:16px;font-weight:900;cursor:pointer;
+    font-family:'Outfit',sans-serif;background:var(--accent);color:#fff;
+  }
+}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px 18px;font-size:13px;z-index:600;transform:translateY(80px);opacity:0;transition:all .3s;max-width:300px;}
 .toast.show{transform:translateY(0);opacity:1;}
@@ -615,6 +682,7 @@ let PRECIOS = {
 // ════ STATE ════
 let curUser=null,curTab='pedido',loginRole='emp';
 let clientes=[],pedidos=[],numPedido=1;
+let mpAlertMostrado=new Set(); // track which pedido ids already showed alert
 
 // ════ PRELOADED CLIENTS ════
 const CLIENTES_INICIALES = [{"dir": "GARAY 3076", "entre": "GALENO Y GUTEMBERG", "envio": 0}, {"dir": "Garay 3148", "entre": "", "envio": 0}, {"dir": "Garay 3415", "entre": "", "envio": 0}, {"dir": "Garay 2445 Daniel Taibo", "entre": "", "envio": 0}, {"dir": "Garay 2615", "entre": "", "envio": 0}, {"dir": "Mariel Garay 2815", "entre": "", "envio": 0}, {"dir": "Garay 2469", "entre": "", "envio": 0}, {"dir": "Garay 2870", "entre": "", "envio": 0}, {"dir": "Garay 2334", "entre": "", "envio": 0}, {"dir": "Garay 2290", "entre": "", "envio": 0}, {"dir": "Garay 3145", "entre": "", "envio": 0}, {"dir": "Garay 3290", "entre": "", "envio": 0}, {"dir": "Fer Garay", "entre": "", "envio": 0}, {"dir": "Garay 2568", "entre": "", "envio": 0}, {"dir": "Juan De Garay 3245 Mateo", "entre": "", "envio": 0}, {"dir": "Garay 3048", "entre": "", "envio": 0}, {"dir": "Garay 3534", "entre": "", "envio": 0}, {"dir": "Garay 2860", "entre": "", "envio": 0}, {"dir": "Garay 2870 Gerez", "entre": "", "envio": 0}, {"dir": "Yanina Garay 2614 Bravo", "entre": "", "envio": 0}, {"dir": "Garay 3376", "entre": "", "envio": 0}, {"dir": "Garay 2797", "entre": "", "envio": 0}, {"dir": "Garay 2846", "entre": "", "envio": 0}, {"dir": "Garay 3346", "entre": "", "envio": 0}, {"dir": "Garay 3368", "entre": "", "envio": 0}, {"dir": "Garay 2457", "entre": "", "envio": 0}, {"dir": "Garay 2562", "entre": "", "envio": 0}, {"dir": "Garay 2832", "entre": "", "envio": 0}, {"dir": "Garay 2309", "entre": "", "envio": 0}, {"dir": "Garay 3315", "entre": "", "envio": 0}, {"dir": "Garay 2494", "entre": "", "envio": 0}, {"dir": "Juan De Garay 2060 Antón", "entre": "", "envio": 0}, {"dir": "Garay 3177", "entre": "", "envio": 0}, {"dir": "Parrilla Garay", "entre": "", "envio": 0}, {"dir": "Garay 2814", "entre": "", "envio": 0}, {"dir": "Garay 3287", "entre": "", "envio": 0}, {"dir": "Garay 2963", "entre": "", "envio": 0}, {"dir": "Garay 2614", "entre": "", "envio": 0}, {"dir": "Garay 3113", "entre": "", "envio": 0}, {"dir": "Garay 2060", "entre": "", "envio": 0}, {"dir": "Garay 3026", "entre": "", "envio": 0}, {"dir": "Garay 3489 Adrique Y Olascaga", "entre": "ADROGUE Y OLASCOAGA", "envio": 0}, {"dir": "Garay 2445", "entre": "", "envio": 0}, {"dir": "Garay 3271", "entre": "", "envio": 0}, {"dir": "Garay 2797b", "entre": "", "envio": 0}, {"dir": "Garay 2985", "entre": "", "envio": 0}, {"dir": "Garay 2388", "entre": "", "envio": 0}, {"dir": "Garay 2419", "entre": "", "envio": 0}, {"dir": "Minoguye 1496 esquina garay", "entre": "", "envio": 0}, {"dir": "Garay 3205", "entre": "", "envio": 0}, {"dir": "Garay 3264", "entre": "", "envio": 0}, {"dir": "Garay 1938", "entre": "", "envio": 0}, {"dir": "Garay 2564", "entre": "", "envio": 0}, {"dir": "Garay 3256", "entre": "", "envio": 0}, {"dir": "Garay 2838", "entre": "", "envio": 0}, {"dir": "acoyte 3193", "entre": "", "envio": 2500}, {"dir": "bocayuba 206", "entre": "esquina pueyrredon", "envio": 2500}, {"dir": "DANTE 3137", "entre": "MAESTRO ARGENTINO Y ECHEVERRY", "envio": 0}, {"dir": "MAZZINI 2747", "entre": "ACHALA Y ESQUEL", "envio": 0}, {"dir": "QUEQUEN 3304", "entre": "CARCARAÑA Y ADROGUE", "envio": 0}, {"dir": "PUEYRREDON 1992", "entre": "BOCAYUBA Y CAÑADA DE GOMEZ", "envio": 3000}, {"dir": "VILLEGAS 2182", "entre": "CAÑUELAS Y HUICI", "envio": 0}, {"dir": "SANCTI 971", "entre": "ROCA Y DELFOR DIAZ", "envio": 0}, {"dir": "VILLEGAS 1437", "entre": "GARAY Y GARIBALDI", "envio": 0}, {"dir": "DANTE 3495", "entre": "LEVALLE Y CAÑUELAS SUR", "envio": 0}, {"dir": "ADROGUE 2186", "entre": "HUICI Y CAÑUELAS", "envio": 0}, {"dir": "POTOSI 3185", "entre": "", "envio": 0}, {"dir": "ARGUIBEL 3540", "entre": "ESQ ADROGUE", "envio": 0}, {"dir": "MINOGUYE 1366", "entre": "MUSTONI Y GARIBALDI", "envio": 0}, {"dir": "PASO MORALES 1989", "entre": "HUICI Y POTOSI", "envio": 0}, {"dir": "dante 3171", "entre": "echeverry y m argentino", "envio": 0}, {"dir": "villegas 1570", "entre": "", "envio": 0}, {"dir": "GARIBALDI 2036", "entre": "M AVILES Y ALSINA", "envio": 0}, {"dir": "GARAY 3419", "entre": "CARCARAÑA Y ADROGUE", "envio": 0}, {"dir": "ARGERICH 2226", "entre": "I DEL MAESTRO Y PIOVANO", "envio": 0}, {"dir": "PLANES 2836", "entre": "PLANES Y RISSO", "envio": 0}, {"dir": "ADROGUE 1578", "entre": "GARAY Y QUEQUEN", "envio": 0}, {"dir": "SOLIS 1999", "entre": "VICTOTIA Y ALSINA", "envio": 1200}, {"dir": "LEVALLE 2118", "entre": "HUICI Y CAÑUELAS NORTE", "envio": 0}, {"dir": "COSTANERA 3416", "entre": "PLANES Y GUTEMBERG", "envio": 0}, {"dir": "MUSTONI 2620", "entre": "", "envio": 0}, {"dir": "P MORALES 1099", "entre": "P MORALES Y PALACIOS", "envio": 0}, {"dir": "CARCARAÑA 1949", "entre": "HUICI Y POTOSI", "envio": 0}, {"dir": "P MORALES 991", "entre": "", "envio": 0}, {"dir": "TANDIL 2853", "entre": "", "envio": 0}, {"dir": "MINOGUYE 1349", "entre": "MUSTONI Y GARIBALDI", "envio": 0}, {"dir": "PEDRO DIAZ 3345", "entre": "", "envio": 1200}, {"dir": "DELFOR DIAZ 3160", "entre": "GUTEMBERG Y GALENO", "envio": 0}, {"dir": "GARIBALDI 2394", "entre": "ESQ MINOGUYE", "envio": 0}, {"dir": "AV ROCA 2984", "entre": "ESQUEL Y VILLEGAS", "envio": 0}, {"dir": "MUSTONI 3361", "entre": "LEVALLE Y CARCARAÑA", "envio": 0}, {"dir": "HUICI 3382", "entre": "GUTEMBERG Y LEVALLE", "envio": 0}, {"dir": "ARGUIBEL 3432", "entre": "", "envio": 0}, {"dir": "VILLEGAS 2028", "entre": "HUICI Y CAÑUELAS", "envio": 0}, {"dir": "PALACIOS 2568", "entre": "SANCTI Y BORDA", "envio": 0}, {"dir": "ARROYO SOTO", "entre": "MALASPINA T VILLEGAS", "envio": 0}, {"dir": "M AVILES 1056", "entre": "", "envio": 1200}, {"dir": "ALSINA 1410", "entre": "ESQ GARIBALDI", "envio": 1200}, {"dir": "AMENABAR 2012", "entre": "HUICI Y CAÑUELAS", "envio": 0}, {"dir": "EVA PERON 3536", "entre": "LA CALANDRIA Y C DE LA CRUZ", "envio": 0}, {"dir": "HUICI 3326", "entre": "", "envio": 0}, {"dir": "CARCARAÑA 1146", "entre": "", "envio": 0}, {"dir": "P MORALES 1365", "entre": "MUSTONI Y GARIBALDI", "envio": 0}, {"dir": "PALACIOS 3370", "entre": "LEVALLE Y CARCARAÑA", "envio": 0}, {"dir": "PALACIOS 2257", "entre": "ISABEL Y GOHETE", "envio": 1200}, {"dir": "CARCARAÑA 1273", "entre": "MAZZINI Y MUSTONI", "envio": 0}, {"dir": "CONSCRIPTO SANTI 1680 C", "entre": "", "envio": 0}, {"dir": "BLANQUEADA PUESTO ZAPATILLAS", "entre": "", "envio": 0}, {"dir": "BLANQUEADA PUESTO DE ROCK", "entre": "", "envio": 0}, {"dir": "BLANQUEADA PUESTO DE NIÑO", "entre": "", "envio": 0}, {"dir": "ADROGUE 2138", "entre": "HUICI Y CAÑUELAS", "envio": 0}, {"dir": "LEVALLE 2029", "entre": "", "envio": 0}, {"dir": "VILLEGAS 1685", "entre": "", "envio": 0}, {"dir": "GARAY 2838 A5", "entre": "", "envio": 0}, {"dir": "SOLIS 3380", "entre": "LEVALLE Y CARCARAÑA", "envio": 0}, {"dir": "GARIBALDI 2825", "entre": "AHALA Y ESQUEL", "envio": 0}, {"dir": "ADROGUE 1560", "entre": "", "envio": 0}, {"dir": "SANCTI 1296", "entre": "", "envio": 0}, {"dir": "CARCARAÑA 1323", "entre": "", "envio": 0}, {"dir": "HUICI 3366", "entre": "GUTEMBERG Y LEVALLE", "envio": 0}, {"dir": "VILLEGAS 1585", "entre": "TANDIL Y GARAY", "envio": 0}, {"dir": "MUSTONI 2182", "entre": "", "envio": 0}, {"dir": "HUICI 3622", "entre": "PARED BLANCA Y PUETA NEGRA", "envio": 0}, {"dir": "LEVALLE 1655", "entre": "", "envio": 0}, {"dir": "CAÑUELAS NORTE 3293", "entre": "", "envio": 0}, {"dir": "CELLINI 782", "entre": "", "envio": 1200}, {"dir": "TANDIL 3047", "entre": "GUTEMBERG Y GSLENO", "envio": 0}, {"dir": "ESQUEL 936", "entre": "D.DIAZ Y ROCA", "envio": 0}, {"dir": "GUTEMBERG 2098", "entre": "ESQ CAÑUELA NORTE", "envio": 0}, {"dir": "LEVALLE 1880", "entre": "POTOSI Y ARGUIBEL", "envio": 0}, {"dir": "ACHALA 1070", "entre": "PALACIOS Y CAVOUR", "envio": 0}, {"dir": "M,DE AVILES 1025", "entre": "D,DIAZ Y PALACIOS", "envio": 0}, {"dir": "QUEQUEN 3492", "entre": "", "envio": 0}, {"dir": "ADROGUE 1577", "entre": "", "envio": 0}, {"dir": "ACHALA 1844", "entre": "POTOSI Y ARGUIBEL", "envio": 0}, {"dir": "VILLEGAS 1860 1D", "entre": "", "envio": 0}, {"dir": "PASO MORALES 1099", "entre": "", "envio": 0}, {"dir": "PASO MORALES 1587", "entre": "", "envio": 0}, {"dir": "ACHALA 975", "entre": "", "envio": 0}, {"dir": "D DE MAYO 3229", "entre": "GALENO Y LEVALLE", "envio": 0}, {"dir": "GUTEMBERG 1687", "entre": "SOLIS Y TANDIL", "envio": 0}, {"dir": "GARIBALDI 3100", "entre": "", "envio": 0}, {"dir": "DELFOR DIAZ 3234", "entre": "LEVALLE Y CARCARAÑA", "envio": 0}, {"dir": "TANDIL 3076", "entre": "", "envio": 0}, {"dir": "GUTEMBERG 2581", "entre": "HUEMUL Y ARRIBEÑOS", "envio": 0}, {"dir": "GUTEMBERG 1183", "entre": "MAZZINI Y PALACIOS", "envio": 0}, {"dir": "HUICI 3332", "entre": "PLANES Y GUTEMBERG", "envio": 0}, {"dir": "D.DE MAYO 3075", "entre": "", "envio": 0}, {"dir": "ADROGUE 1878", "entre": "SOLIS Y LAS VIAS", "envio": 0}, {"dir": "BLANQUEADA", "entre": "", "envio": 0}, {"dir": "GARIBALDI 2077", "entre": "AVILES Y ALSINA", "envio": 1200}, {"dir": "LEVALLE  1420", "entre": "", "envio": 0}, {"dir": "ARRIBEÑOS 3567", "entre": "LAS CALANDRIAS Y CDE LA CRUZ", "envio": 0}, {"dir": "ARRIBEÑOS 3466", "entre": "", "envio": 0}, {"dir": "MINOGUYEN 2675", "entre": "", "envio": 0}, {"dir": "PASO MORALES 889", "entre": "", "envio": 1200}, {"dir": "VILLEGAS 1686", "entre": "", "envio": 0}, {"dir": "PLANES 1995", "entre": "", "envio": 0}, {"dir": "PASO MORALES 1035", "entre": "", "envio": 0}, {"dir": "HUICCI 3366", "entre": "GUTEMBERG Y LEVALLE", "envio": 0}, {"dir": "GUTEMBERG 2727", "entre": "JACHAL Y MALASPINA", "envio": 0}, {"dir": "MINOGUYEN 1132", "entre": "PALACIOS Y MAZZINI", "envio": 0}, {"dir": "AMENABAR 2060", "entre": "", "envio": 0}, {"dir": "ACHALA 1785", "entre": "", "envio": 0}, {"dir": "MUSTONI 2156", "entre": "M AVILES Y I DEL MAESTRO", "envio": 0}, {"dir": "PALACIOS 2576", "entre": "BORDA Y SANCTI", "envio": 0}, {"dir": "D DE MAYO 2720", "entre": "ACHALA Y ESQUEL", "envio": 0}, {"dir": "CARCARAÑA 1153", "entre": "MAZZINI Y PALACIOS", "envio": 0}, {"dir": "DANTE 2839", "entre": "", "envio": 0}, {"dir": "BUSTAMANTE 3338", "entre": "VILLEGAS YPLANES", "envio": 0}, {"dir": "ACASSUSO 2095", "entre": "ESQ FOREST", "envio": 0}, {"dir": "CAÑUELAS 3293", "entre": "PLANES Y VILLEGAS", "envio": 0}, {"dir": "OLASCOAGA 1746", "entre": "", "envio": 0}, {"dir": "ADROGUE 1851", "entre": "SOLIS Y LAS VIAS", "envio": 0}, {"dir": "VIGO 3780", "entre": "CUZCO Y AMBEREZ", "envio": 2500}, {"dir": "DANTE 3457", "entre": "LEVALLE Y LA CALANDRIA", "envio": 0}, {"dir": "ojeda 2950", "entre": "", "envio": 0}, {"dir": "M AVILES 1025", "entre": "DELFOR DIAZ Y PALACIOS", "envio": 1200}, {"dir": "PIOVANO 1480", "entre": "GARAY Y GARIBALDI", "envio": 0}, {"dir": "SOLIS 3423", "entre": "CARCARAÑA Y ADROGUE", "envio": 0}, {"dir": "SOLIS 2357", "entre": "PIOVANO Y MINOGUYE", "envio": 0}, {"dir": "GUTEMBERG 1147", "entre": "PALACIOS Y MAZZINI", "envio": 0}, {"dir": "FINOCHIETTO 2037", "entre": "CASTRO BARROS Y SCHUMAN", "envio": 1500}, {"dir": "PASO MORALES 1839", "entre": "ARGUIBEL Y POTOSI", "envio": 0}];
@@ -730,18 +798,25 @@ async function startApp(){
   document.getElementById('sb-urole').textContent=curUser.role==='admin'?'administrador':curUser.role==='delivery'?'delivery':'empleado';
   document.getElementById('tb-date').textContent=now().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
   // Show/hide nav items
-  const adminEls=['sb-s-admin','nb-dashboard','nb-semanal','nb-cierres','nb-stock','nb-precios','nb-clientes','nb-usuarios'];
+  const adminEls=['sb-s-admin','nb-dashboard','nb-semanal','nb-cierres','nb-stock','nb-precios','nb-usuarios'];
   adminEls.forEach(id=>document.getElementById(id)?.classList.toggle('hidden',curUser.role!=='admin'));
+  // Clientes visible for both admin and empleado
+  document.getElementById('nb-clientes')?.classList.toggle('hidden',curUser.role==='delivery');
   const empEls=['nb-caja','nb-delivery'];
   empEls.forEach(id=>document.getElementById(id)?.classList.toggle('hidden',curUser.role==='delivery'));
-  // Pedido tab always visible and active for all roles except admin-only
-  document.getElementById('nb-pedido')?.classList.remove('hidden');
+  // Pedido tab: hide for delivery
+  if(curUser.role==='delivery'){
+    document.getElementById('nb-pedido')?.classList.add('hidden');
+  } else {
+    document.getElementById('nb-pedido')?.classList.remove('hidden');
+  }
   ['nb-mis-entregas','nb-rendicion'].forEach(id=>document.getElementById(id)?.classList.toggle('hidden',curUser.role!=='delivery'));
   init();
 }
 
 // ════ INIT ════
 async function init(){
+  mpAlertMostrado=new Set(); // reset each session
   await verificarTablas();
   await cargarClientes();
   precargarClientes();
@@ -1401,7 +1476,11 @@ async function confirmarPedido(){
   if(dir)await guardarCliente(dir,entre,tel,envio);
   descStockForOrder(items);
   mostrarRemito(saved||p);
-  if(pagoActual==='MP') setTimeout(()=>mostrarMpAlert(saved||p),800);
+  // Show MP alert only if it's an MP payment confirmed as paid
+  if(pagoActual==='MP' && saved && !mpAlertMostrado.has(saved.id)){
+    mpAlertMostrado.add(saved.id);
+    setTimeout(()=>mostrarMpAlert(saved||p), 1200); // after remito closes
+  }
   items=[];pagoActual='MP';clienteActual=null;
   actualizarNumPedido();actualizarVentasHoy();
   ['dir-inp','entre-inp','tel-inp','obs-inp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -1591,7 +1670,14 @@ async function cambiarPago(id){
 }
 async function togglePagado(id){
   const p=pedidos.find(x=>x.id===id);if(!p)return;
-  p.pagado=!p.pagado;await actualizarPedidoDB(id,{pagado:p.pagado});
+  const eraPagado=p.pagado;
+  p.pagado=!p.pagado;
+  await actualizarPedidoDB(id,{pagado:p.pagado});
+  // Show MP alert only when marking as PAID for the first time (MP payments)
+  if(!eraPagado && p.pagado && p.pago==='MP' && !mpAlertMostrado.has(p.id)){
+    mpAlertMostrado.add(p.id);
+    mostrarMpAlert(p);
+  }
   goTab('caja');toast(p.pagado?'✓ Marcado pagado':'Marcado pendiente');
 }
 function verRemito(id){const p=pedidos.find(x=>x.id===id);if(p)mostrarRemito(p);}
@@ -1618,14 +1704,15 @@ function renderDelivery(el){
   </div>`:''}
   <p class="sec-title">Pendientes de entrega</p>
   ${pend.length?pend.map(p=>`
-    <div class="del-card">
-      <div class="del-num">#${String(p.num||'').padStart(3,'0')}</div>
+    <div class="del-card" style="border-color:#f59e0b;border-width:2px">
+      <div class="del-num" style="color:#f59e0b">#${String(p.num||'').padStart(3,'0')}</div>
       <div class="del-info">
+        <div style="font-size:10px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">🟡 Pendiente de entrega</div>
         <div class="del-dir">📍 ${p.dir}</div>
         <div class="del-det">${p.entre?'Entre: '+p.entre+' · ':''}${p.tel?'📞 '+p.tel+' · ':''}${p.hora}</div>
-        <span class="bdg ${p.pagado?'bdg-pag':'bdg-pend'}" style="margin-top:4px;display:inline-block">${p.pagado?'✓ Pagado':'⚠️ COBRAR '+fmt(p.total)}</span>
+        <span class="bdg ${p.pagado?'bdg-pag':'bdg-pend'}" style="margin-top:4px;display:inline-block">${p.pagado?'✓ Ya pagado':'⚠️ COBRAR EN DOMICILIO: '+fmt(p.total)}</span>
       </div>
-      <button class="btn btn-g btn-sm" onclick="marcarEntregado('${p.id}')">✓ Entregado</button>
+      <button class="btn btn-sm" style="background:#f59e0b;color:#000;border:none;font-weight:800" onclick="marcarEntregado('${p.id}')">📦 Marcar<br>entregado</button>
     </div>`).join(''):'<div class="empty">No hay deliveries pendientes 🎉</div>'}
   ${done.length?`<p class="sec-title" style="margin-top:16px">Entregados hoy (${done.length})</p>`+
     done.map(p=>`<div class="del-card del-done">
@@ -1652,57 +1739,82 @@ function renderMisEntregas(el){
   const entregados=pedidos.filter(p=>p.tipo==='delivery'&&p.entregado);
   const misNR=pedidos.filter(p=>p.tipo==='delivery'&&p.entregado&&!p.rendido&&(p.pago==='Efectivo'||p.pago==='Domicilio'));
   const totalAR=misNR.reduce((a,p)=>a+(p.total||0),0);
-  el.innerHTML=`
-  <div class="stat-grid">
-    <div class="stat-box"><div class="stat-lbl">Para entregar</div><div class="stat-val" style="color:var(--yellow)">${pendientes.length}</div></div>
-    <div class="stat-box"><div class="stat-lbl">Entregados</div><div class="stat-val" style="color:var(--green)">${entregados.length}</div></div>
-    <div class="stat-box"><div class="stat-lbl">Efectivo a rendir</div><div class="stat-val" style="color:var(--red)">${fmt(totalAR)}</div></div>
-  </div>
-  <p class="sec-title">Pendientes de entrega</p>
-  ${pendientes.length?pendientes.map(p=>{
-    const its=typeof p.items==='string'?JSON.parse(p.items):p.items||[];
-    return`<div class="ped-card">
-      <div class="ped-head">
-        <div class="ped-num">#${String(p.num||'').padStart(3,'0')}</div>
-        <div class="ped-info">
-          <div class="ped-dir">📍 ${p.dir}</div>
-          <div class="ped-det">${p.entre?'Entre: '+p.entre+' · ':''}${p.tel?'📞 '+p.tel+' · ':''}${p.hora}</div>
-          <div style="margin-top:4px;font-size:12px">${its.map(it=>it.qty+'x '+it.n).join(' · ')}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="ped-total">${fmt(p.total)}</div>
-          <span class="bdg ${p.pago==='MP'||p.pago==='Transferencia'?'bdg-mp':'bdg-pend'}" style="margin-top:4px;display:block">
-            ${p.pago==='MP'?'✓ MP':p.pago==='Transferencia'?'✓ Transfer':'💵 COBRAR'}
+
+  // Stats bar
+  let html=`
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+    <div style="background:#78350f;border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:11px;color:#fcd34d;font-weight:700;text-transform:uppercase">Pendientes</div>
+      <div style="font-size:28px;font-weight:900;color:#fcd34d">${pendientes.length}</div>
+    </div>
+    <div style="background:#166534;border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:11px;color:#86efac;font-weight:700;text-transform:uppercase">Entregados</div>
+      <div style="font-size:28px;font-weight:900;color:#86efac">${entregados.length}</div>
+    </div>
+    <div style="background:${totalAR>0?'#991b1b':'var(--bg3)'};border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:11px;color:${totalAR>0?'#fca5a5':'#888'};font-weight:700;text-transform:uppercase">A rendir</div>
+      <div style="font-size:18px;font-weight:900;color:${totalAR>0?'#ef4444':'#555'}">${fmt(totalAR)}</div>
+    </div>
+  </div>`;
+
+  // Efectivo a rendir button
+  if(misNR.length){
+    html+=`<button onclick="goTab('rendicion')" style="width:100%;background:#f59e0b;color:#000;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:14px;font-family:'Outfit',sans-serif">
+      💵 TENGO ${fmt(totalAR)} PARA RENDIR A CAJA →
+    </button>`;
+  }
+
+  // PENDIENTES
+  if(pendientes.length){
+    html+=`<div style="font-size:12px;font-weight:700;color:#fcd34d;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🟡 Pendientes de entrega</div>`;
+    html+=pendientes.map(p=>{
+      const its=typeof p.items==='string'?JSON.parse(p.items):p.items||[];
+      const esMPTransf=p.pago==='MP'||p.pago==='Transferencia';
+      const esEfectivo=p.pago==='Efectivo';
+      const esDomicilio=p.pago==='Domicilio';
+      return`<div class="del-mobile-card pendiente">
+        <div class="del-mobile-status pendiente">🟡 SIN ENTREGAR — #${String(p.num||'').padStart(3,'0')}</div>
+        <div class="del-mobile-body">
+          <div class="del-mobile-dir">📍 ${p.dir}</div>
+          <div class="del-mobile-det">
+            ${p.entre?'Entre: '+p.entre+'<br>':''}
+            ${p.tel?'📞 '+p.tel+'<br>':''}
+            ⏰ ${p.hora||''}
+          </div>
+          <div class="del-mobile-prods">${its.map(it=>it.qty+'x '+it.n+(it.nota?'<br><small style="color:#555">'+it.nota+'</small>':'')).join('<br>')}</div>
+          <div class="del-mobile-total ${esMPTransf?'pagado':esDomicilio?'cobrar':'cobrar'}">
+            ${esMPTransf?'✓ PAGADO':esDomicilio||esEfectivo?'💵 COBRAR'+'<br>':''}
+            ${fmt(p.total)}
+          </div>
+          <span class="del-mobile-pago ${esMPTransf?'mp':esEfectivo?'ef':'dom'}">
+            ${esMPTransf?'✓ Pagado por '+p.pago:esDomicilio?'⚠️ Cobrar en domicilio':'💵 Efectivo'}
           </span>
+          <br/>
+          <button onclick="deliveryMarcarEntregado('${p.id}','${miNombre}')" style="width:100%;padding:16px;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:'Outfit',sans-serif;background:#22c55e;color:#fff;margin-top:4px">
+            ✓ YA ENTREGUÉ ESTE PEDIDO
+          </button>
         </div>
-      </div>
-      <div style="padding-top:10px;border-top:1px solid var(--border);margin-top:8px">
-        <button class="btn btn-g btn-full" onclick="deliveryMarcarEntregado('${p.id}','${miNombre}')">✓ Entregué este pedido</button>
-      </div>
-    </div>`;
-  }).join(''):'<div class="empty">No hay pedidos pendientes 🎉</div>'}
-  ${misNR.length?`
-  <p class="sec-title" style="margin-top:16px">Efectivo a rendir</p>
-  <div class="card" style="border-color:var(--red-border)">
-    <div class="card-title" style="color:var(--red)">💵 Tenés ${fmt(totalAR)} para rendir a caja</div>
-    ${misNR.map(p=>`<div class="pedido-row">
-      <div><div class="pedido-name">#${String(p.num||'').padStart(3,'0')} — ${p.dir}</div>
-      <div class="pedido-detail">${p.hora} · ${p.pago}</div></div>
-      <div class="pedido-qty">${fmt(p.total)}</div>
-    </div>`).join('')}
-    <button class="btn btn-p btn-full" style="margin-top:12px" onclick="goTab('rendicion')">💵 Ir a rendir efectivo</button>
-  </div>`:''}
-  ${entregados.length?`<p class="sec-title" style="margin-top:16px">Entregados hoy</p>`+
-    entregados.map(p=>`<div class="ped-card" style="opacity:.6">
-      <div class="ped-head">
-        <div class="ped-num">#${String(p.num||'').padStart(3,'0')}</div>
-        <div class="ped-info"><div class="ped-dir">${p.dir}</div><div class="ped-det">${p.hora} · ${fmt(p.total)}</div></div>
-        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-          <span class="bdg bdg-pag">✓ Entregado</span>
-          ${p.rendido?'<span class="bdg bdg-ef">✓ Rendido</span>':''}
+      </div>`;
+    }).join('');
+  } else {
+    html+=`<div style="text-align:center;padding:30px;color:#555;font-size:16px">🎉 No hay pedidos pendientes</div>`;
+  }
+
+  // ENTREGADOS
+  if(entregados.length){
+    html+=`<div style="font-size:12px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px">✅ Entregados hoy</div>`;
+    html+=entregados.map(p=>`
+      <div class="del-mobile-card entregado-card" style="opacity:.65">
+        <div class="del-mobile-status entregado">✅ ENTREGADO — #${String(p.num||'').padStart(3,'0')}</div>
+        <div class="del-mobile-body">
+          <div class="del-mobile-dir">${p.dir}</div>
+          <div class="del-mobile-det">${p.hora} · ${fmt(p.total)}</div>
+          ${p.rendido?'<span style="font-size:11px;background:#166534;color:#86efac;padding:2px 10px;border-radius:99px">✓ Efectivo rendido</span>':''}
         </div>
-      </div>
-    </div>`).join(''):''}`;
+      </div>`).join('');
+  }
+
+  el.innerHTML=html;
 }
 
 async function deliveryMarcarEntregado(id,nombre){
@@ -1720,29 +1832,47 @@ function renderRendicion(el){
   const pendientes=pedidos.filter(p=>p.tipo==='delivery'&&p.entregado&&!p.rendido&&(p.pago==='Efectivo'||p.pago==='Domicilio'));
   const total=pendientes.reduce((a,p)=>a+(p.total||0),0);
   if(!pendientes.length){
-    el.innerHTML=`<div class="card" style="text-align:center;padding:2rem"><div style="font-size:40px;margin-bottom:10px">✅</div><div style="font-size:16px;font-weight:700;color:var(--green)">Todo rendido</div><div style="font-size:13px;color:var(--text2);margin-top:6px">No tenés efectivo pendiente.</div></div>`;
+    el.innerHTML=`
+    <div style="text-align:center;padding:40px 20px">
+      <div style="font-size:70px;margin-bottom:16px">✅</div>
+      <div style="font-size:22px;font-weight:800;color:var(--green)">¡Todo rendido!</div>
+      <div style="font-size:14px;color:var(--text2);margin-top:8px">No tenés efectivo pendiente.</div>
+      <button onclick="goTab('mis-entregas')" style="margin-top:20px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:10px;padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">← Volver a mis entregas</button>
+    </div>`;
     return;
   }
   el.innerHTML=`
-  <div class="card" style="border-color:var(--red-border);text-align:center;margin-bottom:12px">
-    <div style="font-size:16px;font-weight:800;color:var(--red);margin-bottom:4px">💵 Total a entregar a caja</div>
-    <div style="font-size:36px;font-weight:900">${fmt(total)}</div>
-    <div style="font-size:12px;color:var(--text2);margin-top:4px">${pendientes.length} pedido${pendientes.length>1?'s':''}</div>
+  <div class="rendir-mobile-total">
+    <div style="font-size:14px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Total a entregar a caja</div>
+    ${fmt(total)}
+    <div style="font-size:13px;color:#888;margin-top:4px">${pendientes.length} pedido${pendientes.length>1?'s':''}</div>
   </div>
-  <div class="card" style="margin-bottom:12px">
-    ${pendientes.map(p=>`<div class="pedido-row">
-      <div><div class="pedido-name">#${String(p.num||'').padStart(3,'0')} — ${p.dir}</div>
-      <div class="pedido-detail">${p.hora}</div></div>
-      <div class="pedido-qty">${fmt(p.total)}</div>
-    </div>`).join('')}
-    <div style="display:flex;justify-content:space-between;padding:8px 0 0;border-top:2px solid var(--border);margin-top:4px;font-size:16px;font-weight:800">
+
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden">
+    ${pendientes.map(p=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:700;font-size:14px">#${String(p.num||'').padStart(3,'0')} — ${p.dir}</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">${p.hora} · ${p.pago}</div>
+        </div>
+        <div style="font-size:18px;font-weight:800;color:var(--red)">${fmt(p.total)}</div>
+      </div>`).join('')}
+    <div style="display:flex;justify-content:space-between;padding:12px 16px;font-size:18px;font-weight:900;background:#1a0a0a">
       <span>TOTAL</span><span style="color:var(--red)">${fmt(total)}</span>
     </div>
   </div>
-  <div class="card" style="background:var(--yellow-bg);border-color:var(--yellow-border)">
-    <div style="font-size:14px;font-weight:700;color:var(--yellow);margin-bottom:10px">Cuando entregués la plata a la cajera:</div>
-    <button class="btn btn-p btn-full" onclick="confirmarRendicion('${miNombre}')">💵 Entregué ${fmt(total)} a caja — Confirmar</button>
-  </div>`;
+
+  <div style="background:#78350f;border-radius:12px;padding:16px;margin-bottom:12px;text-align:center">
+    <div style="font-size:14px;font-weight:700;color:#fcd34d;margin-bottom:4px">⚠️ Entregá este monto a la cajera</div>
+    <div style="font-size:12px;color:#d97706">Ella tiene que confirmar la recepción en su pantalla</div>
+  </div>
+
+  <button class="rendir-mobile-btn" onclick="confirmarRendicion('${miNombre}')">
+    💵 ENTREGUÉ ${fmt(total)} A CAJA
+  </button>
+  <button onclick="goTab('mis-entregas')" style="width:100%;background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;margin-top:8px">
+    ← Volver a mis entregas
+  </button>`;
 }
 
 async function confirmarRendicion(nombreDelivery){
