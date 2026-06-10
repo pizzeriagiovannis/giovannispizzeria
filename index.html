@@ -1063,10 +1063,35 @@ function handlePedidoCambio(payload){
     if(idx >= 0){
       pedidos[idx] = { ...pedidos[idx], ...newRecord };
     } else {
-      // New pedido we didn't have — add it
       pedidos.unshift(newRecord);
       pedidos.sort((a,b) => (b.num||0) - (a.num||0));
     }
+    
+    // Check if this is a rendicion notification for cajera/empleado
+    // When delivery sets rendidoPor but rendido is still false = pending confirmation
+    if(newRecord.rendidoPor && !newRecord.rendido && !newRecord.aceptadoPor){
+      // Only show to non-delivery users (cajera, empleado, admin)
+      if(curUser && curUser.role !== 'delivery'){
+        const pendientesRendir = pedidos.filter(p => 
+          p.rendidoPor === newRecord.rendidoPor && 
+          !p.rendido && !p.aceptadoPor &&
+          (p.pago==='Efectivo'||p.pago==='Domicilio')
+        );
+        const totalRendir = pendientesRendir.reduce((a,p)=>a+(p.total||0),0);
+        if(totalRendir > 0 && !document.getElementById('notif-overlay').classList.contains('open')){
+          rendicionPendiente = {
+            ids: pendientesRendir.map(p=>p.id),
+            total: totalRendir,
+            delivery: newRecord.rendidoPor,
+            hora: newRecord.rendidoHora || '',
+            fecha: new Date().toLocaleDateString('es-AR'),
+            pedidos: pendientesRendir
+          };
+          mostrarNotifRendicion(newRecord.rendidoPor, totalRendir, newRecord.rendidoHora||'', new Date().toLocaleDateString('es-AR'));
+        }
+      }
+    }
+    
     refreshCurrentTab();
     actualizarVentasHoy();
   } else if(eventType === 'DELETE'){
@@ -2074,23 +2099,52 @@ function renderRendicion(el){
 }
 
 async function confirmarRendicion(nombreDelivery){
-  const pendientes=pedidos.filter(p=>p.tipo==='delivery'&&p.entregado&&!p.rendido&&(p.pago==='Efectivo'||p.pago==='Domicilio'));
+  const pendientes=pedidos.filter(p=>p.entregado&&!p.rendido&&(p.pago==='Efectivo'||p.pago==='Domicilio'));
   if(!pendientes.length)return;
   const total=pendientes.reduce((a,p)=>a+(p.total||0),0);
-  // Sin confirmación — el delivery ya apretó el botón intencionalmente
   const hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   const fecha=new Date().toLocaleDateString('es-AR');
+  
+  // Mark pedidos as rendidoPendiente in Supabase so cajera sees it via realtime
+  for(const p of pendientes){
+    await actualizarPedidoDB(p.id, {rendidoPor: nombreDelivery, rendidoHora: hora});
+    // Update local state
+    const local = pedidos.find(x=>x.id===p.id);
+    if(local){ local.rendidoPor=nombreDelivery; local.rendidoHora=hora; }
+  }
+  
   rendicionPendiente={ids:pendientes.map(p=>p.id),total,delivery:nombreDelivery,hora,fecha,pedidos:pendientes};
-  localStorage.setItem('gio_rendicion_pendiente',JSON.stringify({total,delivery:nombreDelivery,hora,fecha,ids:pendientes.map(p=>p.id),ts:Date.now()}));
+  
+  // Show notification on THIS device (delivery) confirming they sent it
+  toast('✓ Notificación enviada a la cajera');
+  
+  // Also show the overlay on this device
   mostrarNotifRendicion(nombreDelivery,total,hora,fecha);
-  iniciarPollingRendicion();
 }
 
 function mostrarNotifRendicion(delivery,total,hora,fecha){
-  document.getElementById('notif-title').textContent='Rendición de efectivo';
-  document.getElementById('notif-body').innerHTML=`<strong style="font-size:16px;color:var(--text)">${delivery}</strong><br>entregó efectivo a caja<br><span style="font-size:12px">${fecha} · ${hora}</span>`;
-  document.getElementById('notif-total').textContent=fmt(total);
-  document.getElementById('notif-overlay').classList.add('open');
+  if(curUser && curUser.role === 'delivery'){
+    // Delivery sees a simple confirmation
+    document.getElementById('notif-title').textContent='✓ Notificación enviada';
+    document.getElementById('notif-body').innerHTML=`La cajera recibirá el aviso de que entregaste el efectivo.<br><span style="font-size:12px">${fecha} · ${hora}</span>`;
+    document.getElementById('notif-total').textContent=fmt(total);
+    // Hide the accept/reject buttons for delivery
+    document.querySelector('.notif-btns').style.display='none';
+    document.getElementById('notif-overlay').classList.add('open');
+    // Auto close after 4 seconds for delivery
+    setTimeout(()=>{
+      document.getElementById('notif-overlay').classList.remove('open');
+      document.querySelector('.notif-btns').style.display='flex';
+      goTab('mis-entregas');
+    }, 4000);
+  } else {
+    // Cajera/empleado/admin sees the accept/reject popup
+    document.querySelector('.notif-btns').style.display='flex';
+    document.getElementById('notif-title').textContent='💵 Rendición de efectivo';
+    document.getElementById('notif-body').innerHTML=`<strong style="font-size:16px;color:var(--text)">${delivery}</strong><br>dice que entregó el efectivo a caja<br><span style="font-size:12px">${fecha} · ${hora}</span>`;
+    document.getElementById('notif-total').textContent=fmt(total);
+    document.getElementById('notif-overlay').classList.add('open');
+  }
 }
 
 async function aceptarRendicion(){
@@ -2115,18 +2169,8 @@ function rechazarRendicion(){
 }
 
 function iniciarPollingRendicion(){
-  if(_pollInterval)clearInterval(_pollInterval);
-  _pollInterval=setInterval(()=>{
-    const data=localStorage.getItem('gio_rendicion_pendiente');
-    if(!data)return;
-    try{
-      const r=JSON.parse(data);
-      if(Date.now()-r.ts<300000&&!document.getElementById('notif-overlay').classList.contains('open')){
-        rendicionPendiente={ids:r.ids,total:r.total,delivery:r.delivery,hora:r.hora,fecha:r.fecha,pedidos:[]};
-        mostrarNotifRendicion(r.delivery,r.total,r.hora,r.fecha);
-      }
-    }catch(e){}
-  },3000);
+  // Rendicion notifications now handled via Supabase realtime
+  // No localStorage polling needed
 }
 
 function renderTab(){goTab(curTab);}
