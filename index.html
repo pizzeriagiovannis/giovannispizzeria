@@ -825,6 +825,25 @@ async function init(){
   initStock();
   actualizarNumPedido();
   iniciarPollingRendicion();
+  sb.channel('pedidos-realtime')
+.on(
+  'postgres_changes',
+  {
+    event: '*',
+    schema: 'public',
+    table: 'pedidos'
+  },
+  async () => {
+
+    await cargarPedidosHoy();
+
+    if(curTab){
+      renderTab();
+    }
+
+  }
+)
+.subscribe();
   if(curUser.role==='admin') goTab('dashboard');
   else if(curUser.role==='delivery') goTab('mis-entregas');
   else goTab('pedido');
