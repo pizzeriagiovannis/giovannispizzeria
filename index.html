@@ -681,6 +681,64 @@ let PRECIOS = {
   ],
 };
 
+
+// ════ MERCADO PAGO CONFIG ════
+// ⚠️ Cambiá este token por el nuevo después de regenerarlo en mercadopago.com
+const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-050510-eed72883dd5c7dd916c6a00e153d4a6c-211981476';
+let mpPagosHoy = []; // pagos reales de MP del día
+let mpLastCheck = null; // última vez que chequeamos
+
+async function cargarPagosMP(){
+  try{
+    const hoy = new Date();
+    const desde = new Date(hoy);
+    desde.setHours(0,0,0,0);
+    const hasta = new Date(hoy);
+    hasta.setHours(23,59,59,999);
+    
+    const url = `https://api.mercadopago.com/v1/payments/search?status=approved&date_created.from=${desde.toISOString()}&date_created.to=${hasta.toISOString()}&limit=50&sort=date_created&criteria=desc`;
+    
+    const resp = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${MP_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if(!resp.ok){ console.error('MP API error:', resp.status); return; }
+    
+    const data = await resp.json();
+    const resultados = data.results || [];
+    
+    mpPagosHoy = resultados.map(p => ({
+      id: p.id,
+      monto: p.transaction_amount,
+      hora: new Date(p.date_approved).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),
+      fecha: new Date(p.date_approved).toLocaleDateString('es-AR'),
+      descripcion: p.description || p.payment_method_id || 'Pago MP',
+      operacion: p.id,
+    }));
+    
+    console.log('Pagos MP hoy:', mpPagosHoy.length);
+    mpLastCheck = new Date();
+    
+    // Refresh caja if we're on that tab
+    if(curTab === 'caja'){
+      goTab('caja');
+    }
+  }catch(e){
+    console.error('Error cargando pagos MP:', e);
+  }
+}
+
+// Auto check MP payments every 2 minutes
+let _mpInterval = null;
+function iniciarCheckMP(){
+  cargarPagosMP(); // load immediately
+  if(_mpInterval) clearInterval(_mpInterval);
+  _mpInterval = setInterval(cargarPagosMP, 120000); // every 2 minutes
+}
+
 // ════ STATE ════
 let curUser=null,curTab='pedido',loginRole='emp';
 let clientes=[],pedidos=[],numPedido=1;
@@ -804,6 +862,7 @@ function doLogout(){
   if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
   if(_pollInterval){ clearInterval(_pollInterval); _pollInterval=null; }
   if(window._deliveryPollInterval){ clearInterval(window._deliveryPollInterval); window._deliveryPollInterval=null; }
+  if(_mpInterval){ clearInterval(_mpInterval); _mpInterval=null; }
   if(_dashRefreshInterval){ clearInterval(_dashRefreshInterval); _dashRefreshInterval=null; }
   ['l-user','l-pass'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('l-err').textContent='';
@@ -847,6 +906,7 @@ async function init(){
   iniciarPollingRendicion();
   iniciarRealtime();
   iniciarAutoRefresh();
+  iniciarCheckMP();
   if(curUser.role==='admin') goTab('dashboard');
   else if(curUser.role==='delivery') goTab('mis-entregas');
   else goTab('pedido');
@@ -1814,6 +1874,51 @@ function renderCaja(el){
     </div>
   </div>
 
+  <!-- PAGOS REALES MP -->
+  <p class="sec-title">💳 Pagos recibidos por Mercado Pago</p>
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--blue)">
+          Total MP real: <span style="font-size:18px">${fmt(mpPagosHoy.reduce((a,p)=>a+p.monto,0))}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">
+          ${mpLastCheck?'Última actualización: '+mpLastCheck.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'Cargando...'}
+        </div>
+      </div>
+      <button class="btn btn-b btn-sm" onclick="cargarPagosMP().then(()=>goTab('caja'))">🔄 Actualizar MP</button>
+    </div>
+    ${mpPagosHoy.length ? `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <tr style="background:#0f1f3a;color:#93c5fd">
+        <th style="padding:6px 8px;text-align:left">HORA</th>
+        <th style="padding:6px 8px;text-align:left">DESCRIPCIÓN</th>
+        <th style="padding:6px 8px;text-align:left">N° OPERACIÓN</th>
+        <th style="padding:6px 8px;text-align:right">MONTO</th>
+      </tr>
+      ${mpPagosHoy.map(p=>`
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;color:#93c5fd;font-weight:700">${p.hora}</td>
+          <td style="padding:6px 8px">${p.descripcion}</td>
+          <td style="padding:6px 8px;color:#666;font-size:11px">${p.operacion}</td>
+          <td style="padding:6px 8px;text-align:right;font-weight:700;color:var(--blue)">${fmt(p.monto)}</td>
+        </tr>`).join('')}
+      <tr style="background:#0f1f3a;font-weight:800">
+        <td colspan="3" style="padding:8px;color:#93c5fd">TOTAL MP</td>
+        <td style="padding:8px;text-align:right;color:#3b82f6;font-size:16px">${fmt(mpPagosHoy.reduce((a,p)=>a+p.monto,0))}</td>
+      </tr>
+    </table>` : '<div style="color:var(--text3);text-align:center;padding:16px">Sin pagos MP hoy</div>'}
+  </div>
+
+  <!-- CIERRE DE CAJA -->
+  <div style="background:var(--red-bg);border:2px solid var(--red-border);border-radius:var(--r);padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:var(--red)">🔒 Cerrar caja del día</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:3px">Registra el cierre con todos los totales de hoy</div>
+    </div>
+    <button class="btn btn-r" onclick="cerrarCaja()">🔒 Cerrar caja</button>
+  </div>
+
   <!-- TABLA COMPLETA -->
   <p class="sec-title">Todos los pedidos de hoy</p>
   <div style="overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)">
@@ -1881,6 +1986,33 @@ async function togglePagado(id){
   goTab('caja');toast(p.pagado?'✓ Marcado pagado':'Marcado pendiente');
 }
 function verRemito(id){const p=pedidos.find(x=>x.id===id);if(p)mostrarRemito(p);}
+
+
+// ════ CIERRE DE CAJA ════
+async function cerrarCaja(){
+  if(!confirm('¿Confirmás el cierre de caja del día?')) return;
+  
+  const total = pedidos.reduce((a,p)=>a+(p.pagado?p.total:0),0);
+  const mp = pedidos.filter(p=>p.pago==='MP'&&p.pagado).reduce((a,p)=>a+p.total,0);
+  const ef = pedidos.filter(p=>p.pago==='Efectivo'&&p.pagado).reduce((a,p)=>a+p.total,0);
+  const tr = pedidos.filter(p=>p.pago==='Transferencia'&&p.pagado).reduce((a,p)=>a+p.total,0);
+  const mpReal = mpPagosHoy.reduce((a,p)=>a+p.monto,0);
+  const fecha = new Date().toLocaleDateString('es-AR');
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  
+  // Save cierre to localStorage (historial)
+  const cierres = ld('gio_cierres',[]);
+  cierres.unshift({
+    fecha, hora,
+    total, mp, ef, tr, mpReal,
+    pedidos: pedidos.length,
+    cerradoPor: curUser.nombre||curUser.user,
+  });
+  sv('gio_cierres', cierres);
+  
+  toast('✓ Caja cerrada — ' + fecha);
+  goTab('cierres');
+}
 
 // ════ DELIVERY (ADMIN VIEW) ════
 function renderDelivery(el){
