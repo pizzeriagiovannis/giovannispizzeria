@@ -739,6 +739,7 @@ async function loadSavedUsers(){
       USERS.length=0;
       if(admin)USERS.push(admin);
       data.forEach(u=>USERS.push({user:u.usuario,pass:u.password,role:u.rol,nombre:u.nombre}));
+      console.log('USERS CARGADOS', USERS);
       return;
     }
   }catch(e){}
