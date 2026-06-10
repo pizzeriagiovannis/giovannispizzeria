@@ -886,11 +886,18 @@ async function guardarCliente(dir,entre,tel,envio){
 }
 async function cargarPedidosHoy(){
   try{
-    const hoy=new Date();hoy.setHours(0,0,0,0);
-    const{data,error}=await sb.from('pedidos').select('*').gte('created_at',hoy.toISOString()).order('num',{ascending:false});
+    // Use Argentina timezone (UTC-3) to get start of today
+    const ahora = new Date();
+    // Get today at midnight Argentina time (UTC-3 = add 3 hours to get UTC midnight)
+    const hoyArg = new Date(ahora);
+    hoyArg.setHours(0,0,0,0);
+    // Subtract 3 hours to go back further and catch all today's orders
+    // regardless of timezone differences
+    hoyArg.setHours(hoyArg.getHours() - 3);
+    const{data,error}=await sb.from('pedidos').select('*').gte('created_at',hoyArg.toISOString()).order('num',{ascending:false});
     if(error){console.error('Error cargando pedidos:',error);return;}
     if(data)pedidos=data;
-    console.log('Pedidos cargados:',pedidos.length);
+    console.log('Pedidos cargados:',pedidos.length, 'desde', hoyArg.toISOString());
   }catch(e){console.error('Error de red cargando pedidos:',e);}
 }
 async function guardarPedido(p){
@@ -1889,9 +1896,10 @@ async function marcarEntregado(id){
 // ════ DELIVERY (MY VIEW) ════
 function renderMisEntregas(el){
   const miNombre=curUser.nombre||curUser.user;
-  const pendientes=pedidos.filter(p=>p.tipo==='delivery'&&!p.entregado);
-  const entregados=pedidos.filter(p=>p.tipo==='delivery'&&p.entregado);
-  const misNR=pedidos.filter(p=>p.tipo==='delivery'&&p.entregado&&!p.rendido&&(p.pago==='Efectivo'||p.pago==='Domicilio'));
+  // Show ALL non-entregado pedidos (both delivery and local) so nothing is missed
+  const pendientes=pedidos.filter(p=>!p.entregado);
+  const entregados=pedidos.filter(p=>p.entregado);
+  const misNR=pedidos.filter(p=>p.entregado&&!p.rendido&&(p.pago==='Efectivo'||p.pago==='Domicilio'));
   const totalAR=misNR.reduce((a,p)=>a+(p.total||0),0);
 
   // Stats bar
