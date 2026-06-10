@@ -784,14 +784,29 @@ function setRole(r){
 function doLogin(){
   const u=document.getElementById('l-user').value.trim().toLowerCase();
   const p=document.getElementById('l-pass').value.trim();
+
+  console.log('LOGIN USER:', u);
+  console.log('LOGIN PASS:', p);
+
   const err=document.getElementById('l-err');
+
   const found=USERS.find(x=>x.user===u&&x.pass===p);
-  if(!found){err.textContent='Usuario o contraseña incorrectos';return;}
+
+  console.log('FOUND:', found);
+
+  if(!found){
+    err.textContent='Usuario o contraseña incorrectos';
+    return;
+  }
+
   if(found.role!==loginRole){
     const roles={admin:'administrador',emp:'empleado',delivery:'delivery'};
-    err.textContent=`Ese usuario no es ${roles[loginRole]||loginRole}`;return;
+    err.textContent=`Ese usuario no es ${roles[loginRole]||loginRole}`;
+    return;
   }
-  err.textContent='';curUser={...found};
+
+  err.textContent='';
+  curUser={...found};
   startApp();
 }
 function doLogout(){
