@@ -801,6 +801,7 @@ function doLogout(){
   // Stop realtime and polling
   if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
   if(_pollInterval){ clearInterval(_pollInterval); _pollInterval=null; }
+  if(window._deliveryPollInterval){ clearInterval(window._deliveryPollInterval); window._deliveryPollInterval=null; }
   if(_dashRefreshInterval){ clearInterval(_dashRefreshInterval); _dashRefreshInterval=null; }
   ['l-user','l-pass'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('l-err').textContent='';
@@ -920,18 +921,40 @@ async function actualizarPedidoDB(id,campos){
   await sb.from('pedidos').update(campos).eq('id',id);
 }
 async function cargarPrecios(){
-  const{data}=await sb.from('precios').select('*');
-  if(data&&data.length>0){
-    const cats={};
-    data.forEach(r=>{if(!cats[r.categoria])cats[r.categoria]=[];cats[r.categoria].push({n:r.nombre,p:r.precio,emp:r.emp||0,_id:r.id});});
-    Object.keys(cats).forEach(cat=>{if(cats[cat].length>0)PRECIOS[cat]=cats[cat];});
-  }else{await sincronizarPrecios();}
+  try{
+    const{data}=await sb.from('precios').select('*');
+    if(data&&data.length>0){
+      // Only update PRICES from Supabase — keep product structure (esp. emp field) from code
+      const precioMap={};
+      data.forEach(r=>{ precioMap[r.nombre]=r.precio; });
+      // Apply prices to existing PRECIOS structure (preserving emp, order, etc.)
+      Object.values(PRECIOS).forEach(prods=>{
+        prods.forEach(p=>{
+          if(precioMap[p.n] !== undefined) p.p = precioMap[p.n];
+        });
+      });
+    } else {
+      // No prices in DB yet — sync our code prices to DB
+      await sincronizarPrecios();
+    }
+  } catch(e){
+    console.error('Error cargando precios:', e);
+  }
 }
 async function sincronizarPrecios(){
-  await sb.from('precios').delete().neq('id','00000000-0000-0000-0000-000000000000');
-  const rows=[];
-  Object.entries(PRECIOS).forEach(([cat,prods])=>{prods.forEach(p=>rows.push({categoria:cat,nombre:p.n,precio:p.p,emp:p.emp||0}));});
-  await sb.from('precios').insert(rows);
+  try{
+    // Delete all existing prices
+    await sb.from('precios').delete().gte('id','00000000-0000-0000-0000-000000000000');
+    // Insert current prices
+    const rows=[];
+    Object.entries(PRECIOS).forEach(([cat,prods])=>{
+      prods.forEach(p=>rows.push({categoria:cat,nombre:p.n,precio:p.p,emp:p.emp||0}));
+    });
+    // Insert in batches of 100
+    for(let i=0;i<rows.length;i+=100){
+      await sb.from('precios').insert(rows.slice(i,i+100));
+    }
+  }catch(e){console.error('Error sincronizando precios:',e);}
 }
 async function guardarPrecios(){await sincronizarPrecios();await cargarPrecios();toast('✓ Precios guardados');}
 
@@ -965,13 +988,30 @@ function iniciarRealtime(){
       schema: 'public',
       table: 'pedidos'
     }, (payload) => {
+      console.log('📡 Realtime evento:', payload.eventType, payload.new?.num);
       handlePedidoCambio(payload);
     })
     .subscribe((status) => {
+      console.log('📡 Realtime status:', status);
       if(status === 'SUBSCRIBED'){
-        console.log('✓ Realtime conectado');
+        toast('📡 Sincronización en tiempo real activa');
+      } else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT'){
+        console.warn('Realtime error, reconectando...');
+        setTimeout(iniciarRealtime, 3000);
       }
     });
+  
+  // Fallback: also poll every 15 seconds for delivery users
+  if(curUser && curUser.role === 'delivery'){
+    if(window._deliveryPollInterval) clearInterval(window._deliveryPollInterval);
+    window._deliveryPollInterval = setInterval(async ()=>{
+      await cargarPedidosHoy();
+      if(curTab === 'mis-entregas'){
+        const body = document.getElementById('page-body');
+        if(body) renderMisEntregas(body);
+      }
+    }, 15000);
+  }
 }
 
 function handlePedidoCambio(payload){
@@ -1002,7 +1042,9 @@ function handlePedidoCambio(payload){
     if(idx >= 0){
       pedidos[idx] = { ...pedidos[idx], ...newRecord };
     } else {
+      // New pedido we didn't have — add it
       pedidos.unshift(newRecord);
+      pedidos.sort((a,b) => (b.num||0) - (a.num||0));
     }
     refreshCurrentTab();
     actualizarVentasHoy();
@@ -1014,11 +1056,16 @@ function handlePedidoCambio(payload){
 }
 
 function refreshCurrentTab(){
-  // Only refresh tabs that show pedidos data, not the pedido form itself
+  const body = document.getElementById('page-body');
+  if(!body || !curTab) return;
+  // Always refresh delivery views when new pedido arrives
   const refreshTabs = ['caja','delivery','mis-entregas','dashboard','rendicion'];
   if(refreshTabs.includes(curTab)){
-    const body = document.getElementById('page-body');
-    if(body) goTab(curTab);
+    goTab(curTab);
+  }
+  // If delivery is on mis-entregas, always refresh
+  if(curUser && curUser.role === 'delivery'){
+    if(curTab === 'mis-entregas') goTab('mis-entregas');
   }
 }
 
@@ -1849,6 +1896,13 @@ function renderMisEntregas(el){
 
   // Stats bar
   let html=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div style="font-size:13px;font-weight:700;color:var(--text2)">Hola ${miNombre} 👋</div>
+    <button onclick="cargarPedidosHoy().then(()=>renderMisEntregas(document.getElementById('page-body')))" 
+      style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">
+      🔄 Actualizar
+    </button>
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
     <div style="background:#78350f;border-radius:10px;padding:12px;text-align:center">
       <div style="font-size:11px;color:#fcd34d;font-weight:700;text-transform:uppercase">Pendientes</div>
@@ -1888,7 +1942,22 @@ function renderMisEntregas(el){
             ${p.tel?'📞 '+p.tel+'<br>':''}
             ⏰ ${p.hora||''}
           </div>
-          <div class="del-mobile-prods">${its.map(it=>it.qty+'x '+it.n+(it.nota?'<br><small style="color:#555">'+it.nota+'</small>':'')).join('<br>')}</div>
+          <div class="del-mobile-prods" style="background:#1a1a1a;border-radius:8px;padding:8px 10px;margin-bottom:10px">
+            <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">📋 DETALLE DEL PEDIDO</div>
+            ${its.map(it=>`
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:3px 0;border-bottom:1px solid #2a2a2a">
+                <div>
+                  <span style="color:#e74c3c;font-weight:900;font-size:14px;margin-right:6px">${it.qty}x</span>
+                  <span style="color:#fff;font-size:13px;font-weight:600">${it.n}</span>
+                  ${it.nota?`<div style="font-size:11px;color:#f59e0b;margin-top:2px;margin-left:22px">${it.nota}</div>`:''}
+                </div>
+                <span style="color:#e74c3c;font-size:12px;font-weight:700;white-space:nowrap;margin-left:8px">${fmt(it.p*it.qty)}</span>
+              </div>`).join('')}
+            <div style="display:flex;justify-content:space-between;padding:6px 0 0;font-size:14px;font-weight:800;color:#fff;border-top:1px solid #444;margin-top:4px">
+              <span>TOTAL PEDIDO</span>
+              <span style="color:#e74c3c">${fmt(p.total)}</span>
+            </div>
+          </div>
           <div class="del-mobile-total ${esMPTransf?'pagado':esDomicilio?'cobrar':'cobrar'}">
             ${esMPTransf?'✓ PAGADO':esDomicilio||esEfectivo?'💵 COBRAR'+'<br>':''}
             ${fmt(p.total)}
@@ -2168,6 +2237,7 @@ function renderPrecios(el){
       <button class="btn btn-g btn-sm" onclick="subirPct()">↑ Subir %</button>
       <button class="btn btn-r btn-sm" id="btn-undo" style="display:none" onclick="deshacerPct()">↩ Deshacer</button>
       <button class="btn btn-p btn-sm" onclick="guardarPrecios()">💾 Guardar</button>
+      <button class="btn btn-ghost btn-sm" onclick="if(confirm('¿Resetear precios de Supabase con los datos actuales?')){sincronizarPrecios().then(()=>toast('✓ Precios resincronizados'))}">🔄 Forzar sync</button>
     </div>
     <div id="price-list"></div>
   </div>`;
