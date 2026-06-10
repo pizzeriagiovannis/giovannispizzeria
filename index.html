@@ -756,7 +756,16 @@ async function guardarUsuariosSupabase(){
     // Delete all and reinsert
     await sb.from('usuarios').delete().neq('id',0);
     const rows=noAdmin.map(u=>({usuario:u.user,password:u.pass,rol:u.role,nombre:u.nombre||u.user}));
-    if(rows.length>0) await sb.from('usuarios').insert(rows);
+    if(rows.length>0){
+  const { data, error } = await sb.from('usuarios').insert(rows);
+
+  console.log('INSERT USUARIOS:', data);
+  console.log('ERROR USUARIOS:', error);
+
+  if(error){
+    alert(error.message);
+  }
+}
   }catch(e){
     // Fallback to localStorage
     sv('gio_users',USERS.filter(u=>u.role!=='admin'));
