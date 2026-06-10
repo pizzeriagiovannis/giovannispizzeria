@@ -844,6 +844,21 @@ async function init(){
   }
 )
 .subscribe();
+  // 🔥 Realtime usuarios
+sb.channel('usuarios-realtime')
+  .on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'usuarios'
+    },
+    async () => {
+      await loadSavedUsers();
+      console.log('Usuarios actualizados');
+    }
+  )
+  .subscribe();
   if(curUser.role==='admin') goTab('dashboard');
   else if(curUser.role==='delivery') goTab('mis-entregas');
   else goTab('pedido');
