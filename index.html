@@ -734,6 +734,7 @@ async function loadSavedUsers(){
   try{
     const{data,error}=await sb.from('usuarios').select('*');
     if(data&&data.length>0){
+      console.log('USUARIOS SUPABASE', data);
       const admin=USERS.find(u=>u.role==='admin');
       USERS.length=0;
       if(admin)USERS.push(admin);
