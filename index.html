@@ -20,6 +20,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+@media(max-width:600px){body{height:auto;overflow:auto;}}
+@media(max-width:600px){body{height:auto;overflow:auto;}}
 .hidden{display:none!important;}
 
 /* LOGIN */
@@ -348,10 +350,10 @@ select option{background:var(--bg3);}
   .nb{padding:8px 12px;font-size:13px;flex:0 0 auto;}
   .sb-user{margin:0;padding:6px 10px;font-size:11px;}
   .btn-out{margin:0;padding:8px 12px;font-size:12px;width:auto;}
-  .main-area{height:auto;min-height:calc(100vh - 120px);}
+  .main-area{height:auto;min-height:0;}
   .topbar{padding:8px 14px;height:auto;flex-wrap:wrap;}
   .tb-title{font-size:15px;}
-  .page-body{padding:10px 12px !important;max-width:100% !important;}
+  .page-body{padding:10px 12px !important;max-width:100% !important;overflow-y:auto !important;height:auto !important;min-height:0 !important;}
 
   /* Delivery cards mobile */
   .del-mobile-card{
@@ -876,11 +878,23 @@ async function guardarCliente(dir,entre,tel,envio){
   const ex=clientes.find(c=>c.dir.toLowerCase()===dir.toLowerCase());
   if(ex){
     const upd={compras:(ex.compras||0)+1,tel:tel||ex.tel,entre:entre||ex.entre,envio:envio??ex.envio??0};
-    await sb.from('clientes').update(upd).eq('id',ex.id);
+    // Only update in DB if it's a real supabase record (not local preloaded)
+    if(ex.id && !String(ex.id).startsWith('local-')){
+      await sb.from('clientes').update(upd).eq('id',ex.id);
+    } else {
+      // Insert as new client in supabase
+      const{data}=await sb.from('clientes').insert([{dir,entre:entre||ex.entre||'',tel:tel||ex.tel||'',envio:envio??ex.envio??0,compras:1}]).select();
+      if(data&&data[0]){
+        // Replace local client with real one
+        const idx=clientes.indexOf(ex);
+        if(idx>=0) clientes[idx]=data[0];
+        else clientes.unshift(data[0]);
+      }
+    }
     Object.assign(ex,upd);
   }else{
-    const{data}=await sb.from('clientes').insert([{dir,entre,tel,envio:envio??0,compras:1}]).select();
-    if(data)clientes.unshift(data[0]);
+    const{data}=await sb.from('clientes').insert([{dir,entre:entre||'',tel:tel||'',envio:envio??0,compras:1}]).select();
+    if(data&&data[0])clientes.unshift(data[0]);
   }
   clientes.sort((a,b)=>b.compras-a.compras);
 }
