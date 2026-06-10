@@ -734,12 +734,10 @@ async function loadSavedUsers(){
   try{
     const{data,error}=await sb.from('usuarios').select('*');
     if(data&&data.length>0){
-      console.log('USUARIOS SUPABASE', data);
       const admin=USERS.find(u=>u.role==='admin');
       USERS.length=0;
       if(admin)USERS.push(admin);
       data.forEach(u=>USERS.push({user:u.usuario,pass:u.password,role:u.rol,nombre:u.nombre}));
-      console.log('USERS CARGADOS', USERS);
       return;
     }
   }catch(e){}
@@ -756,18 +754,9 @@ async function guardarUsuariosSupabase(){
   try{
     const noAdmin=USERS.filter(u=>u.role!=='admin');
     // Delete all and reinsert
-    await sb.from('usuarios').delete().neq('id',0);
+    await sb.from('usuarios').delete().gte('id',1);
     const rows=noAdmin.map(u=>({usuario:u.user,password:u.pass,rol:u.role,nombre:u.nombre||u.user}));
-    if(rows.length>0){
-  const { data, error } = await sb.from('usuarios').insert(rows);
-
-  console.log('INSERT USUARIOS:', data);
-  console.log('ERROR USUARIOS:', error);
-
-  if(error){
-    alert(error.message);
-  }
-}
+    if(rows.length>0) await sb.from('usuarios').insert(rows);
   }catch(e){
     // Fallback to localStorage
     sv('gio_users',USERS.filter(u=>u.role!=='admin'));
@@ -781,43 +770,45 @@ function setRole(r){
     document.getElementById('role-'+x).classList.toggle('on',x===r);
   });
 }
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('l-user').value.trim().toLowerCase();
   const p=document.getElementById('l-pass').value.trim();
-
-  console.log('LOGIN USER:', u);
-  console.log('LOGIN PASS:', p);
-
   const err=document.getElementById('l-err');
+  const btn=document.querySelector('.btn-login');
 
+  // Show loading
+  if(btn){btn.textContent='Verificando...';btn.disabled=true;}
+  err.textContent='';
+
+  // Load latest users from Supabase BEFORE checking credentials
+  await loadSavedUsers();
+
+  // Now check with updated users
   const found=USERS.find(x=>x.user===u&&x.pass===p);
 
-  console.log('FOUND:', found);
+  if(btn){btn.textContent='Ingresar';btn.disabled=false;}
 
-  if(!found){
-    err.textContent='Usuario o contraseña incorrectos';
-    return;
-  }
-
+  if(!found){err.textContent='Usuario o contraseña incorrectos';return;}
   if(found.role!==loginRole){
     const roles={admin:'administrador',emp:'empleado',delivery:'delivery'};
-    err.textContent=`Ese usuario no es ${roles[loginRole]||loginRole}`;
-    return;
+    err.textContent=`Ese usuario no es ${roles[loginRole]||loginRole}`;return;
   }
-
-  err.textContent='';
-  curUser={...found};
+  err.textContent='';curUser={...found};
   startApp();
 }
 function doLogout(){
   curUser=null;
+  // Stop realtime and polling
+  if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
+  if(_pollInterval){ clearInterval(_pollInterval); _pollInterval=null; }
+  if(_dashRefreshInterval){ clearInterval(_dashRefreshInterval); _dashRefreshInterval=null; }
   ['l-user','l-pass'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('l-err').textContent='';
   document.getElementById('pg-login').classList.remove('hidden');
   document.getElementById('pg-app').classList.add('hidden');
 }
 async function startApp(){
-  await loadSavedUsers();
+  // Users already loaded in doLogin — no need to reload
   document.getElementById('pg-login').classList.add('hidden');
   document.getElementById('pg-app').classList.remove('hidden');
   document.getElementById('sb-uname').textContent=curUser.nombre||curUser.user;
@@ -851,40 +842,8 @@ async function init(){
   initStock();
   actualizarNumPedido();
   iniciarPollingRendicion();
-  sb.channel('pedidos-realtime')
-.on(
-  'postgres_changes',
-  {
-    event: '*',
-    schema: 'public',
-    table: 'pedidos'
-  },
-  async () => {
-
-    await cargarPedidosHoy();
-
-    if(curTab){
-      renderTab();
-    }
-
-  }
-)
-.subscribe();
-  // 🔥 Realtime usuarios
-sb.channel('usuarios-realtime')
-  .on(
-    'postgres_changes',
-    {
-      event: '*',
-      schema: 'public',
-      table: 'usuarios'
-    },
-    async () => {
-      await loadSavedUsers();
-      console.log('Usuarios actualizados');
-    }
-  )
-  .subscribe();
+  iniciarRealtime();
+  iniciarAutoRefresh();
   if(curUser.role==='admin') goTab('dashboard');
   else if(curUser.role==='delivery') goTab('mis-entregas');
   else goTab('pedido');
@@ -975,6 +934,93 @@ async function sincronizarPrecios(){
   await sb.from('precios').insert(rows);
 }
 async function guardarPrecios(){await sincronizarPrecios();await cargarPrecios();toast('✓ Precios guardados');}
+
+
+
+// ════ AUTO REFRESH FOR ADMIN ════
+let _dashRefreshInterval = null;
+function iniciarAutoRefresh(){
+  if(_dashRefreshInterval) clearInterval(_dashRefreshInterval);
+  _dashRefreshInterval = setInterval(()=>{
+    // Only auto-refresh non-pedido tabs
+    if(curUser && curUser.role === 'admin' && curTab === 'dashboard'){
+      renderDashboard(document.getElementById('page-body'));
+    }
+  }, 30000); // every 30 seconds
+}
+
+// ════ REALTIME SYNC ════
+let realtimeChannel = null;
+
+function iniciarRealtime(){
+  // Close existing channel if any
+  if(realtimeChannel){
+    sb.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+
+  realtimeChannel = sb.channel('giovannis-sync')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'pedidos'
+    }, (payload) => {
+      handlePedidoCambio(payload);
+    })
+    .subscribe((status) => {
+      if(status === 'SUBSCRIBED'){
+        console.log('✓ Realtime conectado');
+      }
+    });
+}
+
+function handlePedidoCambio(payload){
+  const { eventType, new: newRecord, old: oldRecord } = payload;
+
+  if(eventType === 'INSERT'){
+    // New pedido from another device — add if not already in list
+    if(!pedidos.find(p => p.id === newRecord.id)){
+      pedidos.unshift(newRecord);
+      pedidos.sort((a,b) => (b.num||0) - (a.num||0));
+      // Update num counter
+      const maxNum = Math.max(...pedidos.map(p=>p.num||0));
+      if(maxNum >= numPedido) numPedido = maxNum + 1;
+      const el = document.getElementById('tb-num');
+      if(el) el.textContent = String(numPedido).padStart(3,'0');
+      // Refresh current tab
+      refreshCurrentTab();
+      // Show notification
+      if(curUser.role !== 'emp' || curTab !== 'pedido'){
+        toast('🍕 Nuevo pedido #' + String(newRecord.num||'').padStart(3,'0') + ' — ' + (newRecord.dir||''));
+      }
+      // Update ventas hoy counter
+      actualizarVentasHoy();
+    }
+  } else if(eventType === 'UPDATE'){
+    // Update existing pedido
+    const idx = pedidos.findIndex(p => p.id === newRecord.id);
+    if(idx >= 0){
+      pedidos[idx] = { ...pedidos[idx], ...newRecord };
+    } else {
+      pedidos.unshift(newRecord);
+    }
+    refreshCurrentTab();
+    actualizarVentasHoy();
+  } else if(eventType === 'DELETE'){
+    pedidos = pedidos.filter(p => p.id !== oldRecord.id);
+    refreshCurrentTab();
+    actualizarVentasHoy();
+  }
+}
+
+function refreshCurrentTab(){
+  // Only refresh tabs that show pedidos data, not the pedido form itself
+  const refreshTabs = ['caja','delivery','mis-entregas','dashboard','rendicion'];
+  if(refreshTabs.includes(curTab)){
+    const body = document.getElementById('page-body');
+    if(body) goTab(curTab);
+  }
+}
 
 // ════ TABS ════
 const TAB_TITLES={
@@ -1553,6 +1599,7 @@ async function confirmarPedido(){
   document.getElementById('eb-0')?.classList.add('active');
   renderProds();renderItems();recalc();
   toast(`✓ Pedido #${String(numPedido-1).padStart(3,'0')} confirmado`);
+  actualizarVentasHoy();
 }
 
 // ════ REMITO ════
