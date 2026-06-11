@@ -1248,8 +1248,24 @@ function goTab(t){
     document.querySelector('.main-area').style.overflowY='auto';
   }
   if(t==='pedido')            renderPedido(body);
-  else if(t==='caja'){body.innerHTML='<div class="empty">Cargando...</div>';cargarPedidosHoy().then(()=>renderCaja(document.getElementById('page-body')));return;}
-  else if(t==='ventas'){body.innerHTML='<div class="empty">Cargando...</div>';cargarPedidosHoy().then(()=>renderVentasDia(document.getElementById('page-body')));return;}
+  else if(t==='caja'){
+    body.innerHTML='<div class="empty">Cargando...</div>';
+    (async function(){
+      await cargarPedidosHoy();
+      var b=document.getElementById('page-body');
+      if(b && curTab==='caja') renderCaja(b);
+    })();
+    return;
+  }
+  else if(t==='ventas'){
+    body.innerHTML='<div class="empty">Cargando...</div>';
+    (async function(){
+      await cargarPedidosHoy();
+      var b=document.getElementById('page-body');
+      if(b && curTab==='ventas') renderVentasDia(b);
+    })();
+    return;
+  }
   else if(t==='delivery')     renderDelivery(body);
   else if(t==='mis-entregas') renderMisEntregas(body);
   else if(t==='rendicion')    renderRendicion(body);
@@ -2925,7 +2941,11 @@ function renderVentasDia(el){
 function ventasEditPedido(idx){
   var sorted=pedidos.slice().sort(function(a,b){return (a.num||0)-(b.num||0);});
   var p=sorted[idx];
-  if(p) abrirEditPago(p.id);
+  if(p){
+    abrirEditPago(p.id);
+  } else {
+    toast('Error: pedido no encontrado (idx='+idx+', total='+pedidos.length+')','err');
+  }
 }
 function ventasImprimirPedido(idx){
   var sorted=pedidos.slice().sort(function(a,b){return (a.num||0)-(b.num||0);});
@@ -2953,7 +2973,8 @@ function filtrarTabla(filtro){
 // ════ EDITAR PEDIDO ════
 var _editPagoId=null,_editPagoVal=null;
 function abrirEditPago(id){
-  var p=pedidos.find(function(x){return x.id===id;});if(!p)return;
+  var p=pedidos.find(function(x){return x.id===id;});
+  if(!p){toast('Pedido no encontrado: '+id,'err');return;}
   _editPagoId=id;_editPagoVal=p.pago;
   document.getElementById('edit-pago-num').textContent='#'+String(p.num||'').padStart(3,'0');
   document.getElementById('edit-dir').value=p.dir||'';
