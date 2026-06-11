@@ -684,7 +684,7 @@ let PRECIOS = {
 
 // ════ MERCADO PAGO CONFIG ════
 // ⚠️ Cambiá este token por el nuevo después de regenerarlo en mercadopago.com
-const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-061020-1044bf71a118c8777e7d36cf4c694d28-211981476';
+const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-050510-eed72883dd5c7dd916c6a00e153d4a6c-211981476';
 let mpPagosHoy = []; // pagos reales de MP del día
 let mpLastCheck = null;
 let transfsHoy = ld('gio_transfs_hoy',[]).filter(t=>t.fecha===new Date().toLocaleDateString('es-AR')); // última vez que chequeamos
@@ -2184,9 +2184,20 @@ async function cerrarCaja(){
     cerradoPor: curUser.nombre||curUser.user,
   });
   sv('gio_cierres', cierres);
+  
+  // Limpiar el día: borrar pedidos locales, salidas y transferencias
   salidasCaja = [];
+  transfsHoy = [];
+  sv('gio_transfs_hoy', []);
+  pedidos = [];
+  numPedido = 1;
+  
+  // Actualizar contador en topbar
+  const el = document.getElementById('tb-num');
+  if(el) el.textContent = '001';
+  
   toast('✓ Caja cerrada — ' + fecha);
-  goTab('cierres');
+  goTab('caja');
 }
 
 // ════ DELIVERY (ADMIN VIEW) ════
