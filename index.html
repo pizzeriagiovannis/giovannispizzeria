@@ -1965,7 +1965,7 @@ function renderCaja(el){
       <!-- EFECTIVO -->
       <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;padding:12px">
         <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:8px">💵 Efectivo en caja</div>
-        ${[...efPeds,...trPeds].map(p=>`
+        ${efPeds.map(p=>`
           <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--green-border)">
             <span>#${String(p.num||'').padStart(3,'0')} ${p.dir}</span>
             <span style="font-weight:700;color:var(--green)">${fmt(p.total)}</span>
