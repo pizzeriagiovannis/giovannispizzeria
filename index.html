@@ -710,7 +710,7 @@ async function cargarPagosMP(){
     const data = await resp.json();
     const resultados = data.results || [];
     
-    mpPagosHoy = resultados.map(p => ({
+    const nuevosPagos = resultados.map(p => ({
       id: p.id,
       monto: p.transaction_amount,
       hora: new Date(p.date_approved).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),
@@ -718,10 +718,26 @@ async function cargarPagosMP(){
       descripcion: p.description || p.payment_method_id || 'Pago MP',
       operacion: p.id,
     }));
-    
+
+    // Detect NEW payments since last check and show alert
+    if(mpLastCheck && nuevosPagos.length > 0){
+      const nuevos = nuevosPagos.filter(p => {
+        const yaExistia = mpPagosHoy.find(x => x.id === p.id);
+        return !yaExistia;
+      });
+      nuevos.forEach(p => {
+        if(!mpAlertMostrado.has(p.id)){
+          mpAlertMostrado.add(p.id);
+          // Show MP alert for each new real payment
+          mostrarMpAlertReal(p);
+        }
+      });
+    }
+
+    mpPagosHoy = nuevosPagos;
     console.log('Pagos MP hoy:', mpPagosHoy.length);
     mpLastCheck = new Date();
-    
+
     // Refresh caja if we're on that tab
     if(curTab === 'caja'){
       goTab('caja');
@@ -771,6 +787,15 @@ function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 
 
 // ════ MP ALERT ════
+function mostrarMpAlertReal(pagoMP){
+  // Show alert for REAL MP payment from API
+  document.getElementById('mp-alert-amount').textContent=fmt(pagoMP.monto);
+  document.getElementById('mp-alert-detail').innerHTML=
+    `${pagoMP.hora} · Op: ${pagoMP.operacion}<br>${pagoMP.descripcion}`;
+  document.getElementById('mp-alert').classList.add('show');
+  setTimeout(cerrarMpAlert, 10000);
+}
+
 function mostrarMpAlert(pedido){
   document.getElementById('mp-alert-amount').textContent=fmt(pedido.total);
   document.getElementById('mp-alert-detail').innerHTML=
@@ -1735,11 +1760,7 @@ async function confirmarPedido(){
   if(dir)await guardarCliente(dir,entre,tel,envio);
   descStockForOrder(items);
   mostrarRemito(saved||p);
-  // Show MP alert only if it's an MP payment confirmed as paid
-  if(pagoActual==='MP' && saved && !mpAlertMostrado.has(saved.id)){
-    mpAlertMostrado.add(saved.id);
-    setTimeout(()=>mostrarMpAlert(saved||p), 1200); // after remito closes
-  }
+  // MP alert only triggers from real MP API payment, not from confirming pedido
   items=[];pagoActual='MP';clienteActual=null;
   actualizarNumPedido();actualizarVentasHoy();
   ['dir-inp','entre-inp','tel-inp','obs-inp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -1911,12 +1932,65 @@ function renderCaja(el){
   </div>
 
   <!-- CIERRE DE CAJA -->
-  <div style="background:var(--red-bg);border:2px solid var(--red-border);border-radius:var(--r);padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <div style="font-size:15px;font-weight:700;color:var(--red)">🔒 Cerrar caja del día</div>
-      <div style="font-size:12px;color:var(--text2);margin-top:3px">Registra el cierre con todos los totales de hoy</div>
+  <p class="sec-title" style="margin-top:8px">🔒 Cierre de caja</p>
+  <div class="card" style="border-color:var(--red-border);margin-bottom:16px" id="cierre-card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <!-- EFECTIVO -->
+      <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:8px">💵 Efectivo en caja</div>
+        ${[...efPeds,...trPeds].map(p=>`
+          <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--green-border)">
+            <span>#${String(p.num||'').padStart(3,'0')} ${p.dir}</span>
+            <span style="font-weight:700;color:var(--green)">${fmt(p.total)}</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;margin-top:8px;color:var(--green)">
+          <span>SUBTOTAL EFECTIVO</span><span>${fmt(ef+tr)}</span>
+        </div>
+      </div>
+      <!-- MP -->
+      <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:8px;padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:8px">📱 Mercado Pago</div>
+        ${mpPeds.map(p=>`
+          <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--blue-border)">
+            <span>#${String(p.num||'').padStart(3,'0')} ${p.dir}</span>
+            <span style="font-weight:700;color:var(--blue)">${fmt(p.total)}</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;margin-top:8px;color:var(--blue)">
+          <span>TOTAL MP</span><span>${fmt(mp)}</span>
+        </div>
+      </div>
     </div>
-    <button class="btn btn-r" onclick="cerrarCaja()">🔒 Cerrar caja</button>
+
+    <!-- SALIDAS -->
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;display:block;margin-bottom:4px">💸 Salidas / Gastos del día</label>
+      <div id="salidas-list"></div>
+      <button onclick="agregarSalida()" class="btn btn-ghost btn-sm" style="margin-top:6px">+ Agregar salida</button>
+    </div>
+
+    <!-- RESUMEN FINAL -->
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px" id="resumen-cierre">
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text2)">Total ventas del día</span>
+        <span style="font-weight:700">${fmt(total)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--blue)">📱 Entró por MP</span>
+        <span style="font-weight:700;color:var(--blue)">- ${fmt(mp)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)" id="salidas-total-row">
+        <span style="color:var(--red)">💸 Salidas</span>
+        <span style="font-weight:700;color:var(--red)" id="salidas-total">- $0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:900;padding:8px 0;margin-top:4px;border-top:2px solid var(--border)">
+        <span>💵 EFECTIVO EN CAJA</span>
+        <span style="color:var(--green)" id="efectivo-esperado">${fmt(ef+tr)}</span>
+      </div>
+    </div>
+
+    <button class="btn btn-r btn-full" onclick="cerrarCaja()" style="font-size:15px;font-weight:900;padding:14px">
+      🔒 CERRAR CAJA DEL DÍA
+    </button>
   </div>
 
   <!-- TABLA COMPLETA -->
@@ -1989,27 +2063,66 @@ function verRemito(id){const p=pedidos.find(x=>x.id===id);if(p)mostrarRemito(p);
 
 
 // ════ CIERRE DE CAJA ════
+let salidasCaja = []; // salidas del día
+
+function agregarSalida(){
+  const id = Date.now();
+  salidasCaja.push({id, descripcion:'', monto:0});
+  renderSalidas();
+}
+
+function renderSalidas(){
+  const el = document.getElementById('salidas-list');
+  if(!el) return;
+  el.innerHTML = salidasCaja.map((s,i) => `
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+      <input type="text" placeholder="Descripción (ej: cambio, gas...)" value="${s.descripcion}"
+        onchange="salidasCaja[${i}].descripcion=this.value"
+        style="flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--text);font-family:'Outfit',sans-serif"/>
+      <input type="number" placeholder="$0" value="${s.monto||''}"
+        onchange="salidasCaja[${i}].monto=parseFloat(this.value)||0;actualizarResumenCierre()"
+        style="width:100px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--text);font-family:'Outfit',sans-serif"/>
+      <button onclick="salidasCaja.splice(${i},1);renderSalidas();actualizarResumenCierre()"
+        style="background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:13px">✕</button>
+    </div>`).join('');
+  actualizarResumenCierre();
+}
+
+function actualizarResumenCierre(){
+  const totalSalidas = salidasCaja.reduce((a,s)=>a+(s.monto||0),0);
+  const ef = pedidos.filter(p=>p.pago==='Efectivo'&&p.pagado).reduce((a,p)=>a+p.total,0);
+  const tr = pedidos.filter(p=>p.pago==='Transferencia'&&p.pagado).reduce((a,p)=>a+p.total,0);
+  const efectivoEsperado = ef + tr - totalSalidas;
+  const elSalidas = document.getElementById('salidas-total');
+  const elEfectivo = document.getElementById('efectivo-esperado');
+  if(elSalidas) elSalidas.textContent = '- ' + fmt(totalSalidas);
+  if(elEfectivo) elEfectivo.textContent = fmt(efectivoEsperado);
+}
+
 async function cerrarCaja(){
   if(!confirm('¿Confirmás el cierre de caja del día?')) return;
-  
+
   const total = pedidos.reduce((a,p)=>a+(p.pagado?p.total:0),0);
   const mp = pedidos.filter(p=>p.pago==='MP'&&p.pagado).reduce((a,p)=>a+p.total,0);
   const ef = pedidos.filter(p=>p.pago==='Efectivo'&&p.pagado).reduce((a,p)=>a+p.total,0);
   const tr = pedidos.filter(p=>p.pago==='Transferencia'&&p.pagado).reduce((a,p)=>a+p.total,0);
+  const totalSalidas = salidasCaja.reduce((a,s)=>a+(s.monto||0),0);
+  const efectivoEsperado = ef + tr - totalSalidas;
   const mpReal = mpPagosHoy.reduce((a,p)=>a+p.monto,0);
   const fecha = new Date().toLocaleDateString('es-AR');
   const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-  
-  // Save cierre to localStorage (historial)
+
   const cierres = ld('gio_cierres',[]);
   cierres.unshift({
-    fecha, hora,
-    total, mp, ef, tr, mpReal,
+    fecha, hora, total, mp, ef, tr,
+    mpReal, totalSalidas, efectivoEsperado,
+    salidas: [...salidasCaja],
     pedidos: pedidos.length,
     cerradoPor: curUser.nombre||curUser.user,
   });
   sv('gio_cierres', cierres);
-  
+  salidasCaja = [];
+
   toast('✓ Caja cerrada — ' + fecha);
   goTab('cierres');
 }
