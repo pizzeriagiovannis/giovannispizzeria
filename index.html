@@ -1855,6 +1855,7 @@ function renderCaja(el){
   const pendPeds = pedidos.filter(p=>!p.pagado);
   // MP cobrado también descuenta el envío (el envío ya se descuentó del total)
   const mp = mpPeds.reduce((a,p)=>a+(p.total-(p.envio||0)),0);
+  const ef = efPeds.reduce((a,p)=>a+(p.total-(p.envio||0)),0);
   const totalTransfManuales = transfsHoy.reduce((a,t)=>a+t.monto,0);
 
   el.innerHTML=`
@@ -1884,7 +1885,7 @@ function renderCaja(el){
     </div>
     <!-- EFECTIVO/OTROS -->
     <div class="cierre-panel cierre-panel-ef">
-      <div class="cierre-panel-head">💵 Efectivo / Transfer · <span style="margin-left:auto;font-size:16px">${fmt(ef+tr)}</span></div>
+      <div class="cierre-panel-head">💵 Efectivo / Transfer · <span style="margin-left:auto;font-size:16px">${fmt(ef)}</span></div>
       ${efPeds.length?efPeds.map(p=>`
         <div class="cierre-item-row">
           <span style="color:#86efac;font-weight:700">#${String(p.num||'').padStart(3,'0')}</span>
@@ -1970,7 +1971,7 @@ function renderCaja(el){
             <span style="font-weight:700;color:var(--green)">${fmt(p.total)}</span>
           </div>`).join('')}
         <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;margin-top:8px;color:var(--green)">
-          <span>SUBTOTAL EFECTIVO</span><span>${fmt(ef+tr)}</span>
+          <span>SUBTOTAL EFECTIVO</span><span>${fmt(ef)}</span>
         </div>
       </div>
       <!-- MP -->
