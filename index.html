@@ -712,7 +712,7 @@ let PRECIOS = {
 
 // ════ MERCADO PAGO CONFIG ════
 // ⚠️ Cambiá este token por el nuevo después de regenerarlo en mercadopago.com
-const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-061020-1044bf71a118c8777e7d36cf4c694d28-211981476';
+    const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-061020-1044bf71a118c8777e7d36cf4c694d28-211981476';
 let mpPagosHoy = []; // pagos reales de MP del día
 let mpLastCheck = null;
 let transfsHoy = ld('gio_transfs_hoy',[]).filter(t=>t.fecha===new Date().toLocaleDateString('es-AR')); // última vez que chequeamos
@@ -2941,11 +2941,7 @@ function renderVentasDia(el){
 function ventasEditPedido(idx){
   var sorted=pedidos.slice().sort(function(a,b){return (a.num||0)-(b.num||0);});
   var p=sorted[idx];
-  if(p){
-    abrirEditPago(p.id);
-  } else {
-    toast('Error: pedido no encontrado (idx='+idx+', total='+pedidos.length+')','err');
-  }
+  if(p) abrirEditPago(p.id);
 }
 function ventasImprimirPedido(idx){
   var sorted=pedidos.slice().sort(function(a,b){return (a.num||0)-(b.num||0);});
@@ -2974,7 +2970,7 @@ function filtrarTabla(filtro){
 var _editPagoId=null,_editPagoVal=null;
 function abrirEditPago(id){
   var p=pedidos.find(function(x){return x.id===id;});
-  if(!p){toast('Pedido no encontrado: '+id,'err');return;}
+  if(!p)return;
   _editPagoId=id;_editPagoVal=p.pago;
   document.getElementById('edit-pago-num').textContent='#'+String(p.num||'').padStart(3,'0');
   document.getElementById('edit-dir').value=p.dir||'';
