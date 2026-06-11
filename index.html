@@ -537,7 +537,33 @@ select option{background:var(--bg3);}
   </div>
 </div>
 
-<div id="edit-pago-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;padding:16px;"><div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:24px;width:100%;max-width:420px"><div style="font-size:16px;font-weight:700;margin-bottom:16px">&#9998; Editar <span id="edit-pago-num"></span></div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">DIRECCIÓN</div><input id="edit-dir" class="finp" placeholder="Dirección..." style="margin-bottom:10px"/><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">ENTRE CALLES</div><input id="edit-entre" class="finp" placeholder="Entre..."/></div><div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">TEL</div><input id="edit-tel" class="finp" placeholder="Tel..."/></div></div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">ENVIO ($)</div><input id="edit-envio" type="number" class="finp" placeholder="0" style="margin-bottom:14px"/><div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:700">FORMA DE PAGO</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px"><button onclick="setEditPago('MP')" id="epb-MP" class="btn btn-ghost" style="justify-content:center">MP</button><button onclick="setEditPago('Efectivo')" id="epb-Efectivo" class="btn btn-ghost" style="justify-content:center">Efectivo</button><button onclick="setEditPago('Pagado')" id="epb-Pagado" class="btn btn-ghost" style="justify-content:center">Pagado</button></div><div style="display:flex;gap:8px"><button onclick="cerrarEditPago()" class="btn btn-ghost btn-full">Cancelar</button><button onclick="guardarEditPago()" class="btn btn-p btn-full">Guardar</button></div></div></div>
+<div id="edit-pago-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;padding:16px;overflow-y:auto;">
+<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:24px;width:100%;max-width:480px;margin:auto">
+  <div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Editar pedido <span id="edit-pago-num"></span></div>
+  <div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">DIRECCIÓN</div>
+  <input id="edit-dir" class="finp" placeholder="Dirección..." style="margin-bottom:10px"/>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">ENTRE CALLES</div><input id="edit-entre" class="finp" placeholder="Entre..."/></div>
+    <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">TELÉFONO</div><input id="edit-tel" class="finp" placeholder="Tel..."/></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">ENVÍO ($)</div><input id="edit-envio" type="number" class="finp" placeholder="0"/></div>
+    <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">TOTAL ($) — editar si cambió</div><input id="edit-total" type="number" class="finp" placeholder="0"/></div>
+  </div>
+  <div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:700">OBSERVACIONES</div>
+  <input id="edit-obs" class="finp" placeholder="Aclaraciones..." style="margin-bottom:10px"/>
+  <div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:700">FORMA DE PAGO</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+    <button onclick="setEditPago('MP')" id="epb-MP" class="btn btn-ghost" style="justify-content:center">📱 MP</button>
+    <button onclick="setEditPago('Efectivo')" id="epb-Efectivo" class="btn btn-ghost" style="justify-content:center">💵 Efectivo</button>
+    <button onclick="setEditPago('Pagado')" id="epb-Pagado" class="btn btn-ghost" style="justify-content:center">✅ Pagado</button>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button onclick="cerrarEditPago()" class="btn btn-ghost btn-full">Cancelar</button>
+    <button onclick="guardarEditPago()" class="btn btn-p btn-full">💾 Guardar cambios</button>
+  </div>
+</div>
+</div>
 <div class="toast" id="toast"></div>
 <script>
 // ════ CONFIG ════
@@ -685,7 +711,7 @@ let PRECIOS = {
 
 
 // ════ MERCADO PAGO CONFIG ════
-// 
+// ⚠️ Cambiá este token por el nuevo después de regenerarlo en mercadopago.com
 const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-061020-1044bf71a118c8777e7d36cf4c694d28-211981476';
 let mpPagosHoy = []; // pagos reales de MP del día
 let mpLastCheck = null;
@@ -2918,6 +2944,8 @@ function abrirEditPago(id){
   document.getElementById('edit-entre').value=p.entre||'';
   document.getElementById('edit-tel').value=p.tel||'';
   document.getElementById('edit-envio').value=p.envio||0;
+  document.getElementById('edit-total').value=p.total||0;
+  document.getElementById('edit-obs').value=p.obs||'';
   ['MP','Efectivo','Pagado'].forEach(function(op){
     var btn=document.getElementById('epb-'+op);
     if(btn){btn.className='btn '+(p.pago===op?'btn-p':'btn-ghost');btn.style.justifyContent='center';}
@@ -2944,10 +2972,11 @@ async function guardarEditPago(){
   var entre=document.getElementById('edit-entre').value.trim();
   var tel=document.getElementById('edit-tel').value.trim();
   var envio=parseFloat(document.getElementById('edit-envio').value)||0;
-  var subtotal=p.subtotal||(p.total-(p.envio||0));
-  var total=subtotal+envio-(p.descuento||0);
-  Object.assign(p,{dir:dir,entre:entre,tel:tel,envio:envio,pago:_editPagoVal,pagado:true,total:total});
-  await actualizarPedidoDB(_editPagoId,{dir:dir,entre:entre,tel:tel,envio:envio,pago:_editPagoVal,pagado:true,total:total});
+  var totalInput=parseFloat(document.getElementById('edit-total').value)||0;
+  var obs=document.getElementById('edit-obs').value.trim();
+  var total=totalInput>0?totalInput:(p.subtotal||(p.total-(p.envio||0)))+envio-(p.descuento||0);
+  Object.assign(p,{dir:dir,entre:entre,tel:tel,envio:envio,obs:obs,pago:_editPagoVal,pagado:true,total:total});
+  await actualizarPedidoDB(_editPagoId,{dir:dir,entre:entre,tel:tel,envio:envio,obs:obs,pago:_editPagoVal,pagado:true,total:total});
   cerrarEditPago();
   toast('Pedido actualizado');
   cargarPedidosHoy().then(function(){renderVentasDia(document.getElementById('page-body'));});
