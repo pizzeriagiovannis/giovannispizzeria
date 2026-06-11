@@ -2864,7 +2864,7 @@ function renderVentasDia(el){
     return '<div style="display:flex;justify-content:space-between;padding:6px 14px;border-bottom:1px solid var(--border);font-size:12px"><span><strong style="color:var(--accent)">#'+String(p.num||'').padStart(3,'0')+'</strong> '+p.dir+' <span style="font-size:10px;color:#888">('+p.pago+')</span></span><span style="color:var(--green);font-weight:700">'+fmt((p.total||0)-(p.envio||0))+'</span></div>';
   }).join('');
 
-  var tableRows=sorted.map(function(p){
+  var tableRows=sorted.map(function(p,idx){
     var its=typeof p.items==='string'?JSON.parse(p.items||'[]'):p.items||[];
     var prods=its.map(function(it){return it.qty+'x '+it.n+(it.nota?' ('+it.nota+')':'');}).join(' / ');
     return '<tr class="caja-row" data-pago="'+p.pago+'" style="border-bottom:1px solid var(--border)">'+
@@ -2878,9 +2878,9 @@ function renderVentasDia(el){
       '<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">'+prods+'</td>'+
       '<td style="font-weight:700;text-align:right">'+fmt(p.total)+'</td>'+
       '<td><div style="display:flex;gap:4px">'+
-        '<button class="btn btn-b btn-sm" style="padding:3px 7px;font-size:10px" onclick="abrirEditPago(\"'+p.id+'\")">✏️</button>'+
-        '<button class="btn btn-ghost btn-sm" style="padding:3px 7px;font-size:10px" onclick="verRemito(\"'+p.id+'\")">🖨️</button>'+
-        '<button class="btn btn-r btn-sm" style="padding:3px 7px;font-size:10px" onclick="borrarPedidoHoy(\"'+p.id+'\")">🗑</button>'+
+        '<button class="btn btn-b btn-sm" style="padding:3px 7px;font-size:10px" onclick="ventasEditPedido('+idx+')">✏️</button>'+
+        '<button class="btn btn-ghost btn-sm" style="padding:3px 7px;font-size:10px" onclick="ventasImprimirPedido('+idx+')">🖨️</button>'+
+        '<button class="btn btn-r btn-sm" style="padding:3px 7px;font-size:10px" onclick="ventasBorrarPedido('+idx+')">🗑</button>'+
       '</div></td>'+
     '</tr>';
   }).join('');
@@ -2921,6 +2921,22 @@ function renderVentasDia(el){
     '</table></div>';
 }
 
+
+function ventasEditPedido(idx){
+  var sorted=pedidos.slice().sort(function(a,b){return (a.num||0)-(b.num||0);});
+  var p=sorted[idx];
+  if(p) abrirEditPago(p.id);
+}
+function ventasImprimirPedido(idx){
+  var sorted=pedidos.slice().sort(function(a,b){return (a.num||0)-(b.num||0);});
+  var p=sorted[idx];
+  if(p) verRemito(p.id);
+}
+function ventasBorrarPedido(idx){
+  var sorted=pedidos.slice().sort(function(a,b){return (a.num||0)-(b.num||0);});
+  var p=sorted[idx];
+  if(p) borrarPedidoHoy(p.id);
+}
 // ════ FILTRO ════
 var _filtroCaja='todos';
 function filtrarTabla(filtro){
