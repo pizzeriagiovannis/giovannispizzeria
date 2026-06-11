@@ -464,6 +464,7 @@ select option{background:var(--bg3);}
     <button class="nb hidden" id="nb-dashboard" onclick="goTab('dashboard')"><span class="nb-ico">📊</span> Dashboard</button>
     <button class="nb hidden" id="nb-semanal" onclick="goTab('semanal')"><span class="nb-ico">📅</span> Ventas semana</button>
     <button class="nb hidden" id="nb-cierres" onclick="goTab('cierres')"><span class="nb-ico">🔒</span> Cierres de caja</button>
+    <button class="nb hidden" id="nb-historial" onclick="goTab('historial')"><span class="nb-ico">📋</span> Historial pedidos</button>
     <button class="nb hidden" id="nb-stock" onclick="goTab('stock')"><span class="nb-ico">📦</span> Stock</button>
     <button class="nb hidden" id="nb-precios" onclick="goTab('precios')"><span class="nb-ico">🏷️</span> Precios</button>
     <button class="nb hidden" id="nb-clientes" onclick="goTab('clientes')"><span class="nb-ico">👥</span> Clientes</button>
@@ -692,15 +693,14 @@ let transfsHoy = ld('gio_transfs_hoy',[]).filter(t=>t.fecha===new Date().toLocal
 async function cargarPagosMP(){
   try{
     const hoy = new Date();
-    const desde = new Date(hoy);
-    desde.setHours(0,0,0,0);
-    const hasta = new Date(hoy);
-    hasta.setHours(23,59,59,999);
-    
-    // MP API acepta fechas en formato: 2024-01-01T00:00:00.000-03:00
+    // Solo traer pagos desde las 19hs de hoy (inicio del servicio)
     const pad = n => String(n).padStart(2,'0');
     const fechaHoy = `${hoy.getFullYear()}-${pad(hoy.getMonth()+1)}-${pad(hoy.getDate())}`;
-    const url = `https://api.mercadopago.com/v1/payments/search?status=approved&begin_date=${fechaHoy}T00:00:00.000-03:00&end_date=${fechaHoy}T23:59:59.999-03:00&limit=50&sort=date_created&criteria=desc`;
+    // Sáb(6) y Dom(0) también abren al mediodía
+    const diaSemana = hoy.getDay();
+    const esFinDeSemana = diaSemana === 0 || diaSemana === 6;
+    const horaApertura = esFinDeSemana ? '12:00:00.000' : '19:00:00.000';
+    const url = `https://api.mercadopago.com/v1/payments/search?status=approved&begin_date=${fechaHoy}T${horaApertura}-03:00&end_date=${fechaHoy}T23:59:59.999-03:00&limit=100&sort=date_created&criteria=desc`;
     
     const resp = await fetch(url, {
       headers: {
@@ -906,7 +906,7 @@ async function startApp(){
   document.getElementById('sb-urole').textContent=curUser.role==='admin'?'administrador':curUser.role==='delivery'?'delivery':'empleado';
   document.getElementById('tb-date').textContent=now().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
   // Show/hide nav items
-  const adminEls=['sb-s-admin','nb-dashboard','nb-semanal','nb-cierres','nb-stock','nb-precios','nb-usuarios'];
+  const adminEls=['sb-s-admin','nb-dashboard','nb-semanal','nb-cierres','nb-historial','nb-stock','nb-precios','nb-usuarios'];
   adminEls.forEach(id=>document.getElementById(id)?.classList.toggle('hidden',curUser.role!=='admin'));
   // Clientes visible for both admin and empleado
   document.getElementById('nb-clientes')?.classList.toggle('hidden',curUser.role==='delivery'); // visible for emp and admin
@@ -992,7 +992,7 @@ async function cargarPedidosHoy(){
     // Argentina is UTC-3, get last 20 hours to always catch today's orders
     const desde = new Date();
     desde.setHours(desde.getHours() - 20);
-    const{data,error}=await sb.from('pedidos').select('*').gte('created_at',desde.toISOString()).order('num',{ascending:true});
+    const{data,error}=await sb.from('pedidos').select('*').gte('created_at',desde.toISOString()).neq('cerrado',true).order('num',{ascending:true});
     if(error){console.error('Error cargando pedidos:',error);return;}
     if(data){
       pedidos=data;
@@ -1206,7 +1206,7 @@ const TAB_TITLES={
   'pedido':'🍕 Nuevo pedido','caja':'💰 Caja del día','delivery':'🛵 Delivery',
   'mis-entregas':'🛵 Mis entregas','rendicion':'💵 Rendir efectivo',
   'dashboard':'📊 Dashboard','semanal':'📅 Ventas de la semana',
-  'cierres':'🔒 Cierres de caja','stock':'📦 Stock',
+  'cierres':'🔒 Cierres de caja','historial':'📋 Historial de pedidos','stock':'📦 Stock',
   'precios':'🏷️ Precios','clientes':'👥 Clientes','usuarios':'🔑 Usuarios',
 };
 function goTab(t){
@@ -1218,16 +1218,21 @@ function goTab(t){
   if(t==='pedido'){
     body.style.cssText='padding:0;max-width:100%;flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:column;';
   }else{
-    body.style.cssText='padding:16px 20px;max-width:900px;flex:1;overflow-y:auto;min-height:0;';
+    body.style.cssText='padding:16px 20px;max-width:100%;flex:1;overflow-y:auto;min-height:0;';
   }
   if(t==='pedido')            renderPedido(body);
-  else if(t==='caja')         renderCaja(body);
+  else if(t==='caja'){
+    // Always reload pedidos before showing caja
+    cargarPedidosHoy().then(()=>renderCaja(body));
+    return;
+  }
   else if(t==='delivery')     renderDelivery(body);
   else if(t==='mis-entregas') renderMisEntregas(body);
   else if(t==='rendicion')    renderRendicion(body);
   else if(t==='dashboard')    renderDashboard(body);
   else if(t==='semanal')      renderSemanal(body);
   else if(t==='cierres')      renderCierres(body);
+  else if(t==='historial')    renderHistorial(body);
   else if(t==='stock')        renderStock(body);
   else if(t==='precios')      renderPrecios(body);
   else if(t==='clientes')     renderClientes(body);
@@ -2036,7 +2041,7 @@ function renderCaja(el){
   </div>
 
   <!-- TABLA COMPLETA -->
-  <p class="sec-title">Todos los pedidos de hoy</p>
+  <p class="sec-title" style="margin-top:16px">📋 Todos los pedidos de hoy</p>
   <div style="overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)">
   <table class="caja-table">
     <thead>
@@ -2084,10 +2089,12 @@ function renderCaja(el){
 }
 async function cambiarPago(id){
   const p=pedidos.find(x=>x.id===id);if(!p)return;
-  const ops=['MP','Efectivo','Transferencia','Domicilio'];
-  p.pago=ops[(ops.indexOf(p.pago)+1)%ops.length];p.pagado=p.pago!=='Domicilio';
+  const ops=['MP','Efectivo','Pagado','Domicilio'];
+  p.pago=ops[(ops.indexOf(p.pago)+1)%ops.length];
+  p.pagado=p.pago!=='Domicilio';
   await actualizarPedidoDB(id,{pago:p.pago,pagado:p.pagado});
-  goTab('caja');toast('Pago → '+p.pago);
+  toast('Pago cambiado → '+p.pago);
+  cargarPedidosHoy().then(()=>renderCaja(document.getElementById('page-body')));
 }
 async function togglePagado(id){
   const p=pedidos.find(x=>x.id===id);if(!p)return;
@@ -2185,19 +2192,78 @@ async function cerrarCaja(){
   });
   sv('gio_cierres', cierres);
   
-  // Limpiar el día: borrar pedidos locales, salidas y transferencias
+  // Marcar todos los pedidos de hoy como cerrados en Supabase
+  const ids = pedidos.map(p=>p.id).filter(id=>!String(id).startsWith('local-'));
+  if(ids.length > 0){
+    await sb.from('pedidos').update({cerrado:true}).in('id', ids);
+  }
+  
+  // Limpiar local
   salidasCaja = [];
   transfsHoy = [];
   sv('gio_transfs_hoy', []);
   pedidos = [];
   numPedido = 1;
+  mpPagosHoy = [];
   
-  // Actualizar contador en topbar
   const el = document.getElementById('tb-num');
   if(el) el.textContent = '001';
   
   toast('✓ Caja cerrada — ' + fecha);
   goTab('caja');
+}
+
+
+
+// ════ HISTORIAL PEDIDOS (solo admin) ════
+async function renderHistorial(el){
+  el.innerHTML='<div class="empty">Cargando...</div>';
+  const{data}=await sb.from('pedidos').select('*').order('created_at',{ascending:false}).limit(200);
+  if(!data||!data.length){el.innerHTML='<div class="empty">Sin pedidos en el historial</div>';return;}
+  
+  const totalPed = data.length;
+  const totalVentas = data.reduce((a,p)=>a+(p.total||0),0);
+  
+  el.innerHTML=`
+  <div class="stat-grid" style="margin-bottom:14px">
+    <div class="stat-box"><div class="stat-lbl">Total pedidos</div><div class="stat-val">${totalPed}</div></div>
+    <div class="stat-box"><div class="stat-lbl">Total histórico</div><div class="stat-val" style="color:var(--accent)">${fmt(totalVentas)}</div></div>
+    <div class="stat-box"><div class="stat-lbl">Días registrados</div><div class="stat-val">${new Set(data.map(p=>(p.created_at||'').slice(0,10))).size}</div></div>
+  </div>
+  <div style="overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)">
+  <table class="caja-table">
+    <thead>
+      <tr>
+        <th>FECHA</th><th>HORA</th><th>Nº</th><th>DIRECCIÓN</th>
+        <th>PAGO</th><th>TOTAL</th><th>ESTADO</th><th>ACCIÓN</th>
+      </tr>
+    </thead>
+    <tbody>
+    ${data.map(p=>`
+      <tr class="${p.cerrado?'':'pagado-ef'}" style="${p.cerrado?'opacity:.5':''}">
+        <td style="white-space:nowrap;color:#888;font-size:11px">${(p.created_at||'').slice(0,10)}</td>
+        <td style="white-space:nowrap;color:#888">${p.hora||''}</td>
+        <td style="font-weight:700;color:var(--accent)">#${String(p.num||'').padStart(3,'0')}</td>
+        <td style="font-weight:600">${p.dir||''}</td>
+        <td><span class="pago-cel ${p.pago==='MP'?'pago-mp':'pago-ef'}">${p.pago||''}</span></td>
+        <td style="font-weight:700;text-align:right">${fmt(p.total)}</td>
+        <td><span style="font-size:10px;padding:2px 7px;border-radius:5px;background:${p.cerrado?'var(--bg3)':'var(--green-bg)'};color:${p.cerrado?'var(--text3)':'var(--green)'}">${p.cerrado?'Cerrado':'Activo'}</span></td>
+        <td>
+          <button class="btn btn-r btn-sm" style="padding:3px 8px;font-size:11px" onclick="borrarPedidoDB('${p.id}')">🗑 Borrar</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+  </div>`;
+}
+
+// ════ BORRAR PEDIDO (solo admin) ════
+async function borrarPedidoDB(id){
+  if(!confirm('¿Borrar este pedido? No se puede deshacer.')) return;
+  await sb.from('pedidos').delete().eq('id', id);
+  pedidos = pedidos.filter(p=>p.id!==id);
+  toast('Pedido borrado');
+  goTab('cierres');
 }
 
 // ════ DELIVERY (ADMIN VIEW) ════
