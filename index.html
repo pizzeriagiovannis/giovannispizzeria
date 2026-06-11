@@ -537,6 +537,42 @@ select option{background:var(--bg3);}
   </div>
 </div>
 
+
+<!-- EDIT PEDIDO MODAL -->
+<div id="edit-pago-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:500;align-items:center;justify-content:center;overflow-y:auto;padding:16px;">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:24px;width:100%;max-width:420px;margin:auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Editar pedido <span id="edit-pago-num"></span></div>
+    
+    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:700;text-transform:uppercase">Dirección</div>
+    <input id="edit-dir" class="finp" placeholder="Dirección..." style="margin-bottom:10px"/>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:700;text-transform:uppercase">Entre calles</div>
+        <input id="edit-entre" class="finp" placeholder="Entre..."/>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:700;text-transform:uppercase">Teléfono</div>
+        <input id="edit-tel" class="finp" placeholder="Tel..."/>
+      </div>
+    </div>
+    
+    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:700;text-transform:uppercase">Envío ($)</div>
+    <input id="edit-envio" type="number" class="finp" placeholder="0" style="margin-bottom:14px"/>
+
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:700;text-transform:uppercase">Forma de pago</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <button onclick="setEditPago('MP')" id="epb-MP" class="btn btn-ghost" style="justify-content:center">📱 Mercado Pago</button>
+      <button onclick="setEditPago('Efectivo')" id="epb-Efectivo" class="btn btn-ghost" style="justify-content:center">💵 Efectivo</button>
+      <button onclick="setEditPago('Pagado')" id="epb-Pagado" class="btn btn-ghost" style="justify-content:center">✅ Pagado</button>
+      <button onclick="setEditPago('Domicilio')" id="epb-Domicilio" class="btn btn-ghost" style="justify-content:center">🏠 Domicilio</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="cerrarEditPago()" class="btn btn-ghost btn-full">Cancelar</button>
+      <button onclick="guardarEditPago()" class="btn btn-p btn-full">💾 Guardar</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script>
 // ════ CONFIG ════
@@ -1959,9 +1995,9 @@ function renderCaja(el){
         <td>
           <span class="pagado-badge ${p.pagado?'pagado-si':'pagado-no'}">${p.pagado?'✓ PAGADO':'⚠ PEND.'}</span>
           <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" style="padding:3px 7px;font-size:10px" onclick="cambiarPago('${p.id}')">✏️</button>
-            <button class="btn ${p.pagado?'btn-g':'btn-ghost'} btn-sm" style="padding:3px 7px;font-size:10px" onclick="togglePagado('${p.id}');goTab('caja')">${p.pagado?'✓':'Cobrar'}</button>
+            <button class="btn btn-b btn-sm" style="padding:3px 7px;font-size:10px" onclick="abrirEditPago('${p.id}')">✏️ Editar</button>
             <button class="btn btn-ghost btn-sm" style="padding:3px 7px;font-size:10px" onclick="verRemito('${p.id}')">🖨️</button>
+            <button class="btn btn-r btn-sm" style="padding:3px 7px;font-size:10px" onclick="borrarPedidoHoy('${p.id}')">🗑</button>
           </div>
         </td>
       </tr>`;
@@ -2145,6 +2181,76 @@ async function renderHistorial(el){
     </tbody>
   </table>
   </div>`;
+}
+
+
+// ════ EDITAR PAGO PEDIDO ════
+let _editPagoId = null;
+let _editPagoVal = null;
+
+function abrirEditPago(id){
+  const p = pedidos.find(x=>x.id===id);
+  if(!p) return;
+  _editPagoId = id;
+  _editPagoVal = p.pago;
+  document.getElementById('edit-pago-num').textContent = '#'+String(p.num||'').padStart(3,'0');
+  // Populate fields
+  document.getElementById('edit-dir').value = p.dir||'';
+  document.getElementById('edit-entre').value = p.entre||'';
+  document.getElementById('edit-tel').value = p.tel||'';
+  document.getElementById('edit-envio').value = p.envio||0;
+  // Highlight current pago
+  ['MP','Efectivo','Pagado','Domicilio'].forEach(op=>{
+    const btn = document.getElementById('epb-'+op);
+    if(btn) btn.className = 'btn '+(p.pago===op?'btn-p':'btn-ghost');
+    if(btn) btn.style.justifyContent = 'center';
+  });
+  document.getElementById('edit-pago-modal').style.display = 'flex';
+}
+
+function setEditPago(pago){
+  _editPagoVal = pago;
+  ['MP','Efectivo','Pagado','Domicilio'].forEach(op=>{
+    const btn = document.getElementById('epb-'+op);
+    if(btn) btn.className = 'btn '+(pago===op?'btn-p':'btn-ghost');
+    if(btn) btn.style.justifyContent = 'center';
+  });
+}
+
+function cerrarEditPago(){
+  document.getElementById('edit-pago-modal').style.display = 'none';
+  _editPagoId = null;
+  _editPagoVal = null;
+}
+
+async function guardarEditPago(){
+  if(!_editPagoId || !_editPagoVal) return;
+  const p = pedidos.find(x=>x.id===_editPagoId);
+  if(!p) return;
+  const dir = document.getElementById('edit-dir').value.trim();
+  const entre = document.getElementById('edit-entre').value.trim();
+  const tel = document.getElementById('edit-tel').value.trim();
+  const envio = parseFloat(document.getElementById('edit-envio').value)||0;
+  const pagado = _editPagoVal !== 'Domicilio';
+  // Recalculate total with new envio
+  const subtotal = p.subtotal || (p.total - (p.envio||0));
+  const descuento = p.descuento || 0;
+  const total = subtotal + envio - descuento;
+  // Update local
+  Object.assign(p, {dir, entre, tel, envio, pago:_editPagoVal, pagado, total});
+  // Update Supabase
+  await actualizarPedidoDB(_editPagoId, {dir, entre, tel, envio, pago:_editPagoVal, pagado, total});
+  cerrarEditPago();
+  toast('✓ Pedido actualizado');
+  cargarPedidosHoy().then(()=>renderCaja(document.getElementById('page-body')));
+}
+
+async function borrarPedidoHoy(id){
+  if(!confirm('¿Borrar este pedido?')) return;
+  await sb.from('pedidos').delete().eq('id',id);
+  pedidos = pedidos.filter(p=>p.id!==id);
+  toast('Pedido borrado');
+  renderCaja(document.getElementById('page-body'));
 }
 
 // ════ BORRAR PEDIDO (solo admin) ════
