@@ -686,7 +686,8 @@ let PRECIOS = {
 // ⚠️ Cambiá este token por el nuevo después de regenerarlo en mercadopago.com
 const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-050510-eed72883dd5c7dd916c6a00e153d4a6c-211981476';
 let mpPagosHoy = []; // pagos reales de MP del día
-let mpLastCheck = null; // última vez que chequeamos
+let mpLastCheck = null;
+let transfsHoy = ld('gio_transfs_hoy',[]).filter(t=>t.fecha===new Date().toLocaleDateString('es-AR')); // última vez que chequeamos
 
 async function cargarPagosMP(){
   try{
@@ -1895,6 +1896,30 @@ function renderCaja(el){
     </div>
   </div>
 
+  <!-- TRANSFERENCIA MANUAL -->
+  <div class="card" style="margin-bottom:12px;border-color:var(--blue-border)">
+    <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">➕ Registrar pago por transferencia (otro banco)</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="number" id="transf-manual-monto" placeholder="Monto $..." 
+        style="flex:1;background:var(--bg3);border:1px solid var(--blue-border);border-radius:6px;padding:8px 10px;font-size:14px;color:var(--text);font-family:'Outfit',sans-serif;outline:none"
+        onkeydown="if(event.key==='Enter')guardarTransfManual()"/>
+      <button onclick="guardarTransfManual()" class="btn btn-b" style="white-space:nowrap">💾 Guardar</button>
+    </div>
+    ${transfsHoy.length?`<div style="margin-top:8px;font-size:12px;color:var(--text2)">
+      ${transfsHoy.map((t,i)=>`
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+          <span>${t.hora} — Transferencia manual</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="color:var(--blue);font-weight:700">${fmt(t.monto)}</span>
+            <button onclick="borrarTransfManual(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px">✕</button>
+          </div>
+        </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;font-weight:800;padding:6px 0;color:var(--blue)">
+        <span>Total transferencias</span><span>${fmt(transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
+      </div>
+    </div>`:''}
+  </div>
+
   <!-- PAGOS REALES MP -->
   <p class="sec-title">💳 Pagos recibidos por Mercado Pago</p>
   <div class="card" style="margin-bottom:16px">
@@ -1977,6 +2002,10 @@ function renderCaja(el){
       <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
         <span style="color:var(--blue)">📱 Entró por MP</span>
         <span style="font-weight:700;color:var(--blue)">- ${fmt(mp)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--blue)">🏦 Transferencias manuales</span>
+        <span style="font-weight:700;color:var(--blue)">- ${fmt(transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)" id="salidas-total-row">
         <span style="color:var(--red)">💸 Salidas</span>
@@ -2062,6 +2091,28 @@ async function togglePagado(id){
 function verRemito(id){const p=pedidos.find(x=>x.id===id);if(p)mostrarRemito(p);}
 
 
+
+// ════ TRANSFERENCIAS MANUALES ════
+function guardarTransfManual(){
+  const input = document.getElementById('transf-manual-monto');
+  if(!input) return;
+  const monto = parseFloat(input.value);
+  if(!monto || monto <= 0){ toast('Ingresá un monto válido','err'); return; }
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  const fecha = new Date().toLocaleDateString('es-AR');
+  transfsHoy.push({monto, hora, fecha});
+  sv('gio_transfs_hoy', transfsHoy);
+  input.value = '';
+  toast('✓ Transferencia registrada: ' + fmt(monto));
+  goTab('caja');
+}
+
+function borrarTransfManual(idx){
+  transfsHoy.splice(idx, 1);
+  sv('gio_transfs_hoy', transfsHoy);
+  goTab('caja');
+}
+
 // ════ CIERRE DE CAJA ════
 let salidasCaja = []; // salidas del día
 
@@ -2092,7 +2143,7 @@ function actualizarResumenCierre(){
   const totalSalidas = salidasCaja.reduce((a,s)=>a+(s.monto||0),0);
   const ef = pedidos.filter(p=>p.pago==='Efectivo'&&p.pagado).reduce((a,p)=>a+p.total,0);
   const tr = pedidos.filter(p=>p.pago==='Transferencia'&&p.pagado).reduce((a,p)=>a+p.total,0);
-  const efectivoEsperado = ef + tr - totalSalidas;
+  const efectivoEsperado = ef + tr - totalSalidas - totalTransfs;
   const elSalidas = document.getElementById('salidas-total');
   const elEfectivo = document.getElementById('efectivo-esperado');
   if(elSalidas) elSalidas.textContent = '- ' + fmt(totalSalidas);
@@ -2107,6 +2158,7 @@ async function cerrarCaja(){
   const ef = pedidos.filter(p=>p.pago==='Efectivo'&&p.pagado).reduce((a,p)=>a+p.total,0);
   const tr = pedidos.filter(p=>p.pago==='Transferencia'&&p.pagado).reduce((a,p)=>a+p.total,0);
   const totalSalidas = salidasCaja.reduce((a,s)=>a+(s.monto||0),0);
+  const totalTransfs = transfsHoy.reduce((a,t)=>a+t.monto,0);
   const efectivoEsperado = ef + tr - totalSalidas;
   const mpReal = mpPagosHoy.reduce((a,p)=>a+p.monto,0);
   const fecha = new Date().toLocaleDateString('es-AR');
