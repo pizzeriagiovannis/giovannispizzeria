@@ -2206,6 +2206,7 @@ function abrirEditPago(id){
     if(btn) btn.style.justifyContent = 'center';
   });
   document.getElementById('edit-pago-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
 }
 
 function setEditPago(pago){
@@ -2218,9 +2219,12 @@ function setEditPago(pago){
 }
 
 function cerrarEditPago(){
-  document.getElementById('edit-pago-modal').style.display = 'none';
+  const modal = document.getElementById('edit-pago-modal');
+  modal.style.display = 'none';
   _editPagoId = null;
   _editPagoVal = null;
+  // Restore body scroll
+  document.body.style.overflow = '';
 }
 
 async function guardarEditPago(){
