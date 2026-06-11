@@ -60,7 +60,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);heig
 .btn-out{width:100%;background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;font-family:'Outfit',sans-serif;}
 
 /* MAIN */
-.main-area{flex:1;overflow:hidden;min-width:0;display:flex;flex-direction:column;height:100vh;}
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;overflow-y:hidden;}
 .topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;height:54px;}
 .tb-title{font-size:17px;font-weight:700;}
 .tb-sub{font-size:12px;color:var(--text2);}
@@ -1917,7 +1917,7 @@ function renderCaja(el){
   <div class="cierre-split">
     <!-- MP -->
     <div class="cierre-panel cierre-panel-mp">
-      <div class="cierre-panel-head">📱 Mercado Pago · <span style="margin-left:auto;font-size:16px">${fmt(mp)}</span></div>
+      <div class="cierre-panel-head">📱 Pedidos cobrados por MP · <span style="margin-left:auto;font-size:16px">${fmt(mp)}</span></div>
       ${mpPeds.length?mpPeds.map(p=>`
         <div class="cierre-item-row">
           <span style="color:#93c5fd;font-weight:700">#${String(p.num||'').padStart(3,'0')}</span>
