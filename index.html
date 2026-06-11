@@ -1930,116 +1930,6 @@ function renderCaja(el){
     </div>`:''}
   </div>
 
-  <!-- PAGOS REALES MP -->
-  <p class="sec-title">💳 Pagos recibidos por Mercado Pago</p>
-  <div class="card" style="margin-bottom:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--blue)">
-          Total MP real: <span style="font-size:18px">${fmt(mpPagosHoy.reduce((a,p)=>a+p.monto,0))}</span>
-        </div>
-        <div style="font-size:11px;color:var(--text2);margin-top:2px">
-          ${mpLastCheck?'Última actualización: '+mpLastCheck.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'Cargando...'}
-        </div>
-      </div>
-      <button class="btn btn-b btn-sm" onclick="cargarPagosMP().then(()=>goTab('caja'))">🔄 Actualizar MP</button>
-    </div>
-    ${mpPagosHoy.length ? `
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <tr style="background:#0f1f3a;color:#93c5fd">
-        <th style="padding:6px 8px;text-align:left">HORA</th>
-        <th style="padding:6px 8px;text-align:left">DESCRIPCIÓN</th>
-        <th style="padding:6px 8px;text-align:left">N° OPERACIÓN</th>
-        <th style="padding:6px 8px;text-align:right">MONTO</th>
-      </tr>
-      ${mpPagosHoy.map(p=>`
-        <tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:6px 8px;color:#93c5fd;font-weight:700">${p.hora}</td>
-          <td style="padding:6px 8px">${p.descripcion}</td>
-          <td style="padding:6px 8px;color:#666;font-size:11px">${p.operacion}</td>
-          <td style="padding:6px 8px;text-align:right;font-weight:700;color:var(--blue)">${fmt(p.monto)}</td>
-        </tr>`).join('')}
-      <tr style="background:#0f1f3a;font-weight:800">
-        <td colspan="3" style="padding:8px;color:#93c5fd">TOTAL MP</td>
-        <td style="padding:8px;text-align:right;color:#3b82f6;font-size:16px">${fmt(mpPagosHoy.reduce((a,p)=>a+p.monto,0))}</td>
-      </tr>
-    </table>` : '<div style="color:var(--text3);text-align:center;padding:16px">Sin pagos MP hoy</div>'}
-  </div>
-
-  <!-- CIERRE DE CAJA -->
-  <p class="sec-title" style="margin-top:8px">🔒 Cierre de caja</p>
-  <div class="card" style="border-color:var(--red-border);margin-bottom:16px" id="cierre-card">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <!-- EFECTIVO -->
-      <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;padding:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:8px">💵 Efectivo en caja</div>
-        ${efPeds.map(p=>`
-          <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--green-border)">
-            <span>#${String(p.num||'').padStart(3,'0')} ${p.dir}</span>
-            <span style="font-weight:700;color:var(--green)">${fmt(p.total)}</span>
-          </div>`).join('')}
-        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;margin-top:8px;color:var(--green)">
-          <span>SUBTOTAL EFECTIVO</span><span>${fmt(ef)}</span>
-        </div>
-      </div>
-      <!-- MP -->
-      <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:8px;padding:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:8px">📱 Mercado Pago</div>
-        ${mpPeds.map(p=>`
-          <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--blue-border)">
-            <span>#${String(p.num||'').padStart(3,'0')} ${p.dir}</span>
-            <span style="font-weight:700;color:var(--blue)">${fmt(p.total)}</span>
-          </div>`).join('')}
-        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;margin-top:8px;color:var(--blue)">
-          <span>TOTAL MP</span><span>${fmt(mp)}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- SALIDAS -->
-    <div style="margin-bottom:12px">
-      <label style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;display:block;margin-bottom:4px">💸 Salidas / Gastos del día</label>
-      <div id="salidas-list"></div>
-      <button onclick="agregarSalida()" class="btn btn-ghost btn-sm" style="margin-top:6px">+ Agregar salida</button>
-    </div>
-
-    <!-- RESUMEN FINAL -->
-    <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px" id="resumen-cierre">
-      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--text2)">Total facturado (con envíos)</span>
-        <span style="font-weight:700">${fmt(totalConEnvio)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--text3)">🛵 Envíos para delivery</span>
-        <span style="color:var(--text3)">- ${fmt(totalEnvios)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="font-weight:700">Ventas reales pizzería</span>
-        <span style="font-weight:700">${fmt(total)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--blue)">📱 Entró por MP</span>
-        <span style="font-weight:700;color:var(--blue)">- ${fmt(mp)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--blue)">🏦 Transferencias otro banco</span>
-        <span style="font-weight:700;color:var(--blue)">- ${fmt(transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)" id="salidas-total-row">
-        <span style="color:var(--red)">💸 Salidas / gastos</span>
-        <span style="font-weight:700;color:var(--red)" id="salidas-total">- $0</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;padding:10px 0;margin-top:4px;border-top:2px solid var(--border)">
-        <span>💵 EFECTIVO EN CAJA</span>
-        <span style="color:var(--green)" id="efectivo-esperado">${fmt(total - mp - transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
-      </div>
-    </div>
-
-    <button class="btn btn-r btn-full" onclick="cerrarCaja()" style="font-size:15px;font-weight:900;padding:14px">
-      🔒 CERRAR CAJA DEL DÍA
-    </button>
-  </div>
-
   <!-- TABLA COMPLETA -->
   <p class="sec-title" style="margin-top:16px">📋 Todos los pedidos de hoy</p>
   <div style="overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)">
@@ -2890,3 +2780,115 @@ document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Ent
 </script>
 </body>
 </html>
+
+  <!-- PAGOS REALES MP -->
+  <p class="sec-title">💳 Pagos recibidos por Mercado Pago</p>
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--blue)">
+          Total MP real: <span style="font-size:18px">${fmt(mpPagosHoy.reduce((a,p)=>a+p.monto,0))}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">
+          ${mpLastCheck?'Última actualización: '+mpLastCheck.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'Cargando...'}
+        </div>
+      </div>
+      <button class="btn btn-b btn-sm" onclick="cargarPagosMP().then(()=>goTab('caja'))">🔄 Actualizar MP</button>
+    </div>
+    ${mpPagosHoy.length ? `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <tr style="background:#0f1f3a;color:#93c5fd">
+        <th style="padding:6px 8px;text-align:left">HORA</th>
+        <th style="padding:6px 8px;text-align:left">DESCRIPCIÓN</th>
+        <th style="padding:6px 8px;text-align:left">N° OPERACIÓN</th>
+        <th style="padding:6px 8px;text-align:right">MONTO</th>
+      </tr>
+      ${mpPagosHoy.map(p=>`
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;color:#93c5fd;font-weight:700">${p.hora}</td>
+          <td style="padding:6px 8px">${p.descripcion}</td>
+          <td style="padding:6px 8px;color:#666;font-size:11px">${p.operacion}</td>
+          <td style="padding:6px 8px;text-align:right;font-weight:700;color:var(--blue)">${fmt(p.monto)}</td>
+        </tr>`).join('')}
+      <tr style="background:#0f1f3a;font-weight:800">
+        <td colspan="3" style="padding:8px;color:#93c5fd">TOTAL MP</td>
+        <td style="padding:8px;text-align:right;color:#3b82f6;font-size:16px">${fmt(mpPagosHoy.reduce((a,p)=>a+p.monto,0))}</td>
+      </tr>
+    </table>` : '<div style="color:var(--text3);text-align:center;padding:16px">Sin pagos MP hoy</div>'}
+  </div>
+
+  <!-- CIERRE DE CAJA -->
+  <p class="sec-title" style="margin-top:8px">🔒 Cierre de caja</p>
+  <div class="card" style="border-color:var(--red-border);margin-bottom:16px" id="cierre-card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <!-- EFECTIVO -->
+      <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:8px">💵 Efectivo en caja</div>
+        ${efPeds.map(p=>`
+          <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--green-border)">
+            <span>#${String(p.num||'').padStart(3,'0')} ${p.dir}</span>
+            <span style="font-weight:700;color:var(--green)">${fmt(p.total)}</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;margin-top:8px;color:var(--green)">
+          <span>SUBTOTAL EFECTIVO</span><span>${fmt(ef)}</span>
+        </div>
+      </div>
+      <!-- MP -->
+      <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:8px;padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:8px">📱 Mercado Pago</div>
+        ${mpPeds.map(p=>`
+          <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--blue-border)">
+            <span>#${String(p.num||'').padStart(3,'0')} ${p.dir}</span>
+            <span style="font-weight:700;color:var(--blue)">${fmt(p.total)}</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;margin-top:8px;color:var(--blue)">
+          <span>TOTAL MP</span><span>${fmt(mp)}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SALIDAS -->
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;display:block;margin-bottom:4px">💸 Salidas / Gastos del día</label>
+      <div id="salidas-list"></div>
+      <button onclick="agregarSalida()" class="btn btn-ghost btn-sm" style="margin-top:6px">+ Agregar salida</button>
+    </div>
+
+    <!-- RESUMEN FINAL -->
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px" id="resumen-cierre">
+      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text2)">Total facturado (con envíos)</span>
+        <span style="font-weight:700">${fmt(totalConEnvio)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text3)">🛵 Envíos para delivery</span>
+        <span style="color:var(--text3)">- ${fmt(totalEnvios)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-weight:700">Ventas reales pizzería</span>
+        <span style="font-weight:700">${fmt(total)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--blue)">📱 Entró por MP</span>
+        <span style="font-weight:700;color:var(--blue)">- ${fmt(mp)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--blue)">🏦 Transferencias otro banco</span>
+        <span style="font-weight:700;color:var(--blue)">- ${fmt(transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)" id="salidas-total-row">
+        <span style="color:var(--red)">💸 Salidas / gastos</span>
+        <span style="font-weight:700;color:var(--red)" id="salidas-total">- $0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;padding:10px 0;margin-top:4px;border-top:2px solid var(--border)">
+        <span>💵 EFECTIVO EN CAJA</span>
+        <span style="color:var(--green)" id="efectivo-esperado">${fmt(total - mp - transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
+      </div>
+    </div>
+
+    <button class="btn btn-r btn-full" onclick="cerrarCaja()" style="font-size:15px;font-weight:900;padding:14px">
+      🔒 CERRAR CAJA DEL DÍA
+    </button>
+  </div>
+
+
