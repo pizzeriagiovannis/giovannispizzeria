@@ -906,7 +906,7 @@ async function startApp(){
   const adminEls=['sb-s-admin','nb-dashboard','nb-semanal','nb-cierres','nb-stock','nb-precios','nb-usuarios'];
   adminEls.forEach(id=>document.getElementById(id)?.classList.toggle('hidden',curUser.role!=='admin'));
   // Clientes visible for both admin and empleado
-  document.getElementById('nb-clientes')?.classList.toggle('hidden',curUser.role==='delivery');
+  document.getElementById('nb-clientes')?.classList.toggle('hidden',curUser.role==='delivery'); // visible for emp and admin
   const empEls=['nb-caja','nb-delivery'];
   empEls.forEach(id=>document.getElementById(id)?.classList.toggle('hidden',curUser.role==='delivery'));
   // Pedido tab: hide for delivery
@@ -1316,7 +1316,7 @@ function renderPedido(el){
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
               <button class="pago-big on" id="pb-MP" onclick="setPagoBig('MP',this)">📱 MP</button>
               <button class="pago-big" id="pb-Efectivo" onclick="setPagoBig('Efectivo',this)">💵 Efect.</button>
-              <button class="pago-big" id="pb-Transferencia" onclick="setPagoBig('Transferencia',this)">🏦 Transfer</button>
+              <button class="pago-big" id="pb-Pagado" onclick="setPagoBig('Pagado',this)">✅ Pagado</button>
               <button class="pago-big" id="pb-Domicilio" onclick="setPagoBig('Domicilio',this)">🏠 Domicilio</button>
             </div>
           </div>
@@ -1846,23 +1846,26 @@ function closePrint(){document.getElementById('print-modal').classList.remove('o
 
 // ════ CAJA ════
 function renderCaja(el){
-  const total=pedidos.reduce((a,p)=>a+(p.pagado?p.total:0),0);
-  const mpPeds=pedidos.filter(p=>p.pago==='MP'&&p.pagado);
-  const efPeds=pedidos.filter(p=>p.pago==='Efectivo'&&p.pagado);
-  const trPeds=pedidos.filter(p=>p.pago==='Transferencia'&&p.pagado);
+  // Total ventas SIN envío (envío va para los delivery, no es ingreso de la pizzería)
+  const totalConEnvio=pedidos.reduce((a,p)=>a+(p.pagado?p.total:0),0);
+  const totalEnvios=pedidos.reduce((a,p)=>a+(p.pagado?(p.envio||0):0),0);
+  const total=totalConEnvio - totalEnvios; // ventas reales sin envío
+
+  // MP incluye Transferencia (mismo destino)
+  const mpPeds=pedidos.filter(p=>(p.pago==='MP'||p.pago==='Transferencia')&&p.pagado);
+  const efPeds=pedidos.filter(p=>(p.pago==='Efectivo'||p.pago==='Pagado'||p.pago==='Domicilio')&&p.pagado);
   const pendPeds=pedidos.filter(p=>!p.pagado);
-  const mp=mpPeds.reduce((a,p)=>a+p.total,0);
-  const ef=efPeds.reduce((a,p)=>a+p.total,0);
-  const tr=trPeds.reduce((a,p)=>a+p.total,0);
-  const ticket=pedidos.length?total/pedidos.length:0;
+  const mp=mpPeds.reduce((a,p)=>a+(p.total-(p.envio||0)),0);
+  const ef=efPeds.reduce((a,p)=>a+(p.total-(p.envio||0)),0);
+  const totalTransfManuales=transfsHoy.reduce((a,t)=>a+t.monto,0);
 
   el.innerHTML=`
   <!-- RESUMEN -->
   <div class="stat-grid" style="margin-bottom:14px">
     <div class="stat-box"><div class="stat-lbl">Pedidos hoy</div><div class="stat-val">${pedidos.length}</div></div>
-    <div class="stat-box"><div class="stat-lbl">VENTAS TOTALES</div><div class="stat-val" style="color:var(--accent)">${fmt(total)}</div></div>
-    <div class="stat-box"><div class="stat-lbl">📱 Entrada MP</div><div class="stat-val" style="color:var(--blue)">${fmt(mp)}</div></div>
-    <div class="stat-box"><div class="stat-lbl">💵 Total Caja</div><div class="stat-val" style="color:var(--green)">${fmt(ef+tr)}</div></div>
+    <div class="stat-box"><div class="stat-lbl">Ventas reales</div><div class="stat-val" style="color:var(--accent)">${fmt(total)}</div><div class="stat-sub">sin envíos</div></div>
+    <div class="stat-box"><div class="stat-lbl">📱 MP + Transfer</div><div class="stat-val" style="color:var(--blue)">${fmt(mp)}</div></div>
+    <div class="stat-box"><div class="stat-lbl">💵 Efectivo caja</div><div class="stat-val" style="color:var(--green)">${fmt(ef - transfsHoy.reduce((a,t)=>a+t.monto,0))}</div></div>
     ${pendPeds.length?`<div class="stat-box" style="border-color:var(--red-border)"><div class="stat-lbl">⚠ Sin cobrar</div><div class="stat-val" style="color:var(--red)">${pendPeds.length}</div></div>`:''}
   </div>
 
@@ -1884,14 +1887,14 @@ function renderCaja(el){
     <!-- EFECTIVO/OTROS -->
     <div class="cierre-panel cierre-panel-ef">
       <div class="cierre-panel-head">💵 Efectivo / Transfer · <span style="margin-left:auto;font-size:16px">${fmt(ef+tr)}</span></div>
-      ${[...efPeds,...trPeds].length?[...efPeds,...trPeds].map(p=>`
+      ${efPeds.length?efPeds.map(p=>`
         <div class="cierre-item-row">
           <span style="color:#86efac;font-weight:700">#${String(p.num||'').padStart(3,'0')}</span>
           <span style="flex:1;margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.dir}</span>
           <span style="font-size:10px;padding:1px 5px;background:${p.pago==='Efectivo'?'#166534':'#854d0e'};color:#fff;border-radius:3px;margin-right:4px">${p.pago}</span>
           <span style="color:#22c55e;font-weight:700">${fmt(p.total)}</span>
         </div>`).join('')+`
-        <div class="cierre-total-row"><span>${efPeds.length+trPeds.length} pedidos</span><span>${fmt(ef+tr)}</span></div>`
+        <div class="cierre-total-row"><span>${efPeds.length} pedidos</span><span>${fmt(ef)}</span></div>`
       :'<div style="padding:12px 14px;color:#555;font-size:12px">Sin cobros en efectivo</div>'}
     </div>
   </div>
@@ -1996,24 +1999,28 @@ function renderCaja(el){
     <!-- RESUMEN FINAL -->
     <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px" id="resumen-cierre">
       <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--text2)">Total ventas del día</span>
+        <span style="color:var(--text2)">Total ventas del día (sin envíos)</span>
         <span style="font-weight:700">${fmt(total)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--blue)">📱 Entró por MP</span>
+        <span style="color:var(--text3)">↳ Envíos (van a los delivery)</span>
+        <span style="color:var(--text3)">- ${fmt(totalEnvios)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--blue)">📱 Cobrado por MP / Transfer</span>
         <span style="font-weight:700;color:var(--blue)">- ${fmt(mp)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--blue)">🏦 Transferencias manuales</span>
+        <span style="color:var(--blue)">🏦 Transferencias otro banco</span>
         <span style="font-weight:700;color:var(--blue)">- ${fmt(transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)" id="salidas-total-row">
-        <span style="color:var(--red)">💸 Salidas</span>
+        <span style="color:var(--red)">💸 Salidas / gastos</span>
         <span style="font-weight:700;color:var(--red)" id="salidas-total">- $0</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:900;padding:8px 0;margin-top:4px;border-top:2px solid var(--border)">
         <span>💵 EFECTIVO EN CAJA</span>
-        <span style="color:var(--green)" id="efectivo-esperado">${fmt(ef+tr)}</span>
+        <span style="color:var(--green)" id="efectivo-esperado">${fmt(ef - transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
       </div>
     </div>
 
@@ -2141,9 +2148,9 @@ function renderSalidas(){
 
 function actualizarResumenCierre(){
   const totalSalidas = salidasCaja.reduce((a,s)=>a+(s.monto||0),0);
-  const ef = pedidos.filter(p=>p.pago==='Efectivo'&&p.pagado).reduce((a,p)=>a+p.total,0);
-  const tr = pedidos.filter(p=>p.pago==='Transferencia'&&p.pagado).reduce((a,p)=>a+p.total,0);
-  const efectivoEsperado = ef + tr - totalSalidas - totalTransfs;
+  const totalTransfManuales = transfsHoy.reduce((a,t)=>a+t.monto,0);
+  const ef = pedidos.filter(p=>(p.pago==='Efectivo'||p.pago==='Pagado'||p.pago==='Domicilio')&&p.pagado).reduce((a,p)=>a+(p.total-(p.envio||0)),0);
+  const efectivoEsperado = ef - totalSalidas - totalTransfManuales;
   const elSalidas = document.getElementById('salidas-total');
   const elEfectivo = document.getElementById('efectivo-esperado');
   if(elSalidas) elSalidas.textContent = '- ' + fmt(totalSalidas);
@@ -2153,13 +2160,13 @@ function actualizarResumenCierre(){
 async function cerrarCaja(){
   if(!confirm('¿Confirmás el cierre de caja del día?')) return;
 
-  const total = pedidos.reduce((a,p)=>a+(p.pagado?p.total:0),0);
-  const mp = pedidos.filter(p=>p.pago==='MP'&&p.pagado).reduce((a,p)=>a+p.total,0);
-  const ef = pedidos.filter(p=>p.pago==='Efectivo'&&p.pagado).reduce((a,p)=>a+p.total,0);
-  const tr = pedidos.filter(p=>p.pago==='Transferencia'&&p.pagado).reduce((a,p)=>a+p.total,0);
+  const totalEnvios = pedidos.reduce((a,p)=>a+(p.pagado?(p.envio||0):0),0);
+  const total = pedidos.reduce((a,p)=>a+(p.pagado?p.total:0),0) - totalEnvios;
+  const mp = pedidos.filter(p=>(p.pago==='MP'||p.pago==='Transferencia')&&p.pagado).reduce((a,p)=>a+(p.total-(p.envio||0)),0);
+  const ef = pedidos.filter(p=>(p.pago==='Efectivo'||p.pago==='Pagado'||p.pago==='Domicilio')&&p.pagado).reduce((a,p)=>a+(p.total-(p.envio||0)),0);
   const totalSalidas = salidasCaja.reduce((a,s)=>a+(s.monto||0),0);
   const totalTransfs = transfsHoy.reduce((a,t)=>a+t.monto,0);
-  const efectivoEsperado = ef + tr - totalSalidas;
+  const efectivoEsperado = ef - totalSalidas - totalTransfs;
   const mpReal = mpPagosHoy.reduce((a,p)=>a+p.monto,0);
   const fecha = new Date().toLocaleDateString('es-AR');
   const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
