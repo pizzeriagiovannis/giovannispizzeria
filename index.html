@@ -683,7 +683,8 @@ let PRECIOS = {
 
 
 // ════ MERCADO PAGO CONFIG ════
-const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-050510-eed72883dd5c7dd916c6a00e153d4a6c-211981476';
+// ⚠️ Cambiá este token por el nuevo después de regenerarlo en mercadopago.com
+const MP_ACCESS_TOKEN = 'APP_USR-1431117381195188-061020-1044bf71a118c8777e7d36cf4c694d28-211981476';
 let mpPagosHoy = []; // pagos reales de MP del día
 let mpLastCheck = null;
 let transfsHoy = ld('gio_transfs_hoy',[]).filter(t=>t.fecha===new Date().toLocaleDateString('es-AR')); // última vez que chequeamos
@@ -696,7 +697,10 @@ async function cargarPagosMP(){
     const hasta = new Date(hoy);
     hasta.setHours(23,59,59,999);
     
-    const url = `https://api.mercadopago.com/v1/payments/search?status=approved&date_created.from=${desde.toISOString()}&date_created.to=${hasta.toISOString()}&limit=50&sort=date_created&criteria=desc`;
+    // MP API acepta fechas en formato: 2024-01-01T00:00:00.000-03:00
+    const pad = n => String(n).padStart(2,'0');
+    const fechaHoy = `${hoy.getFullYear()}-${pad(hoy.getMonth()+1)}-${pad(hoy.getDate())}`;
+    const url = `https://api.mercadopago.com/v1/payments/search?status=approved&begin_date=${fechaHoy}T00:00:00.000-03:00&end_date=${fechaHoy}T23:59:59.999-03:00&limit=50&sort=date_created&criteria=desc`;
     
     const resp = await fetch(url, {
       headers: {
