@@ -1222,8 +1222,8 @@ function goTab(t){
     document.querySelector('.main-area').style.overflowY='auto';
   }
   if(t==='pedido')            renderPedido(body);
-  else if(t==='caja'){cargarPedidosHoy().then(()=>renderCaja(document.getElementById('page-body')));return;}
-  else if(t==='ventas'){cargarPedidosHoy().then(()=>renderVentasDia(document.getElementById('page-body')));return;}
+  else if(t==='caja'){body.innerHTML='<div class="empty">Cargando...</div>';cargarPedidosHoy().then(()=>renderCaja(document.getElementById('page-body')));return;}
+  else if(t==='ventas'){body.innerHTML='<div class="empty">Cargando...</div>';cargarPedidosHoy().then(()=>renderVentasDia(document.getElementById('page-body')));return;}
   else if(t==='delivery')     renderDelivery(body);
   else if(t==='mis-entregas') renderMisEntregas(body);
   else if(t==='rendicion')    renderRendicion(body);
