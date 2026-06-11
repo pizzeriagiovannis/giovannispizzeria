@@ -2154,7 +2154,7 @@ function actualizarResumenCierre(){
   const totalTransfManuales = transfsHoy.reduce((a,t)=>a+t.monto,0);
   const totalEnvios = pedidos.reduce((a,p)=>a+(p.envio||0),0);
   const total = pedidos.reduce((a,p)=>a+(p.total||0),0) - totalEnvios;
-  const mp = pedidos.filter(p=>p.pago==='MP'&&p.pagado).reduce((a,p)=>a+(p.total-(p.envio||0)),0);
+  const mp = pedidos.filter(p=>p.pago==='MP').reduce((a,p)=>a+((p.total||0)-(p.envio||0)),0);
   const efectivoEsperado = total - mp - totalTransfManuales - totalSalidas;
   const elSalidas = document.getElementById('salidas-total');
   const elEfectivo = document.getElementById('efectivo-esperado');
@@ -2164,30 +2164,24 @@ function actualizarResumenCierre(){
 
 async function cerrarCaja(){
   if(!confirm('¿Confirmás el cierre de caja del día?')) return;
-
-  const totalConEnvio = pedidos.reduce((a,p)=>a+(p.total||0),0);
   const totalEnvios = pedidos.reduce((a,p)=>a+(p.envio||0),0);
-  const total = totalConEnvio - totalEnvios;
-  const mp = pedidos.filter(p=>p.pago==='MP'&&p.pagado).reduce((a,p)=>a+(p.total-(p.envio||0)),0);
-  const ef = total - mp;
+  const total = pedidos.reduce((a,p)=>a+(p.total||0),0) - totalEnvios;
+  const mp = pedidos.filter(p=>p.pago==='MP').reduce((a,p)=>a+((p.total||0)-(p.envio||0)),0);
   const totalSalidas = salidasCaja.reduce((a,s)=>a+(s.monto||0),0);
   const totalTransfs = transfsHoy.reduce((a,t)=>a+t.monto,0);
   const efectivoEsperado = total - mp - totalTransfs - totalSalidas;
-  const mpReal = mpPagosHoy.reduce((a,p)=>a+p.monto,0);
   const fecha = new Date().toLocaleDateString('es-AR');
   const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-
   const cierres = ld('gio_cierres',[]);
   cierres.unshift({
-    fecha, hora, total, mp, ef, tr,
-    mpReal, totalSalidas, efectivoEsperado,
+    fecha, hora, total, mp, efectivoEsperado,
+    totalSalidas, totalTransfs,
     salidas: [...salidasCaja],
     pedidos: pedidos.length,
     cerradoPor: curUser.nombre||curUser.user,
   });
   sv('gio_cierres', cierres);
   salidasCaja = [];
-
   toast('✓ Caja cerrada — ' + fecha);
   goTab('cierres');
 }
