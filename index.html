@@ -767,8 +767,9 @@ let transfsHoy = ld('gio_transfs_hoy',[]).filter(t=>t.fecha===new Date().toLocal
 async function cargarPagosMP(){
   try{
     const hoy = new Date();
-    const desde = new Date(hoy);
-    desde.setHours(0,0,0,0);
+    // Filtrar pagos MP desde la apertura de esta caja
+    const desde = window._cajaAbiertaDesde ? new Date(window._cajaAbiertaDesde) : new Date();
+    if(!window._cajaAbiertaDesde){ desde.setHours(0,0,0,0); }
     const hasta = new Date(hoy);
     hasta.setHours(23,59,59,999);
     
@@ -997,6 +998,19 @@ async function startApp(){
 // ════ INIT ════
 async function init(){
   mpAlertMostrado=new Set(); // reset each session
+  // Apertura de sesión: registrar timestamp para filtrar pedidos
+  if(!window._cajaAbiertaDesde){
+    // Si hay cierre guardado localmente, respetar eso
+    const ultimoCierre = ld('gio_ultimo_cierre', null);
+    if(ultimoCierre){
+      window._cajaAbiertaDesde = new Date(ultimoCierre);
+    } else {
+      // Primera vez del día: desde medianoche
+      const medianoche = new Date();
+      medianoche.setHours(0,0,0,0);
+      window._cajaAbiertaDesde = medianoche;
+    }
+  }
   await verificarTablas();
   await cargarClientes();
   precargarClientes();
@@ -1061,14 +1075,18 @@ async function guardarCliente(dir,entre,tel,envio){
 }
 async function cargarPedidosHoy(){
   try{
-    // Argentina is UTC-3, get last 20 hours to always catch today's orders
-    const desde = new Date();
-    desde.setHours(desde.getHours() - 20);
+    // Usar el timestamp de apertura de caja como filtro
+    let desde = window._cajaAbiertaDesde;
+    if(!desde){
+      desde = new Date();
+      desde.setHours(0,0,0,0);
+      window._cajaAbiertaDesde = desde;
+    }
     const{data,error}=await sb.from('pedidos').select('*').gte('created_at',desde.toISOString()).order('num',{ascending:true});
     if(error){console.error('Error cargando pedidos:',error);return;}
     if(data){
       pedidos=data;
-      console.log('Pedidos cargados:',pedidos.length);
+      console.log('Pedidos cargados desde',desde.toLocaleTimeString('es-AR'),':',pedidos.length);
     }
   }catch(e){console.error('Error de red cargando pedidos:',e);}
 }
@@ -1198,6 +1216,10 @@ function handlePedidoCambio(payload){
 
   if(eventType === 'INSERT'){
     // New pedido from another device — add if not already in list
+    // Ignorar pedidos anteriores a la apertura de esta caja
+    if(window._cajaAbiertaDesde && newRecord.created_at && new Date(newRecord.created_at) < window._cajaAbiertaDesde){
+      return; // pedido anterior al cierre, ignorar
+    }
     if(!pedidos.find(p => p.id === newRecord.id)){
       pedidos.unshift(newRecord);
       pedidos.sort((a,b) => (b.num||0) - (a.num||0));
@@ -1965,7 +1987,7 @@ function renderCaja(el){
     <div class="stat-box"><div class="stat-lbl">Pedidos hoy</div><div class="stat-val">${pedidos.length}</div></div>
     <div class="stat-box"><div class="stat-lbl">Ventas reales</div><div class="stat-val" style="color:var(--accent)">${fmt(total)}</div><div class="stat-sub">sin envíos ${fmt(totalEnvios)}</div></div>
     <div class="stat-box"><div class="stat-lbl">📱 Entró por MP</div><div class="stat-val" style="color:var(--blue)">${fmt(mp)}</div></div>
-    <div class="stat-box"><div class="stat-lbl">💵 Efectivo en caja</div><div class="stat-val" style="color:var(--green)">${fmt(total - mp - totalTransfManuales)}</div></div>
+    <div class="stat-box"><div class="stat-lbl">🏦 Transferencias</div><div class="stat-val" style="color:var(--blue)">${fmt(totalTransfManuales)}</div></div>
     ${pendPeds.length?`<div class="stat-box" style="border-color:var(--red-border)"><div class="stat-lbl">⚠ Sin cobrar</div><div class="stat-val" style="color:var(--red)">${pendPeds.length}</div></div>`:''}
   </div>
 
@@ -2098,6 +2120,9 @@ function renderCaja(el){
 
     <!-- RESUMEN FINAL -->
     <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px" id="resumen-cierre">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+        ⚠ Solo se descuentan del efectivo las transferencias que cargues manualmente abajo. MP es solo referencia.
+      </div>
       <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
         <span style="color:var(--text2)">Total facturado (con envíos)</span>
         <span style="font-weight:700">${fmt(totalConEnvio)}</span>
@@ -2110,13 +2135,17 @@ function renderCaja(el){
         <span style="font-weight:700">Ventas reales pizzería</span>
         <span style="font-weight:700">${fmt(total)}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--blue)">📱 Entró por MP</span>
-        <span style="font-weight:700;color:var(--blue)">- ${fmt(mp)}</span>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px dashed var(--border)">
+        <span style="color:#555">📱 Pedidos marcados como MP (referencia)</span>
+        <span style="color:#555">${fmt(mp)}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--blue)">🏦 Transferencias otro banco</span>
-        <span style="font-weight:700;color:var(--blue)">- ${fmt(transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px dashed var(--border)">
+        <span style="color:#555">📲 MP real según API</span>
+        <span style="color:#555">${fmt(mpPagosHoy.reduce((a,p)=>a+p.monto,0))}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:6px 0;border-bottom:1px solid var(--border);color:var(--blue)">
+        <span>🏦 Transferencias cargadas manualmente</span>
+        <span>- ${fmt(transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)" id="salidas-total-row">
         <span style="color:var(--red)">💸 Salidas / gastos</span>
@@ -2124,7 +2153,7 @@ function renderCaja(el){
       </div>
       <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;padding:10px 0;margin-top:4px;border-top:2px solid var(--border)">
         <span>💵 EFECTIVO EN CAJA</span>
-        <span style="color:var(--green)" id="efectivo-esperado">${fmt(total - mp - transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
+        <span style="color:var(--green)" id="efectivo-esperado">${fmt(total - transfsHoy.reduce((a,t)=>a+t.monto,0))}</span>
       </div>
     </div>
 
@@ -2255,8 +2284,9 @@ function actualizarResumenCierre(){
   const totalTransfManuales = transfsHoy.reduce((a,t)=>a+t.monto,0);
   const totalEnvios = pedidos.reduce((a,p)=>a+(p.envio||0),0);
   const total = pedidos.reduce((a,p)=>a+(p.total||0),0) - totalEnvios;
-  const mp = pedidos.filter(p=>p.pago==='MP'&&p.pagado).reduce((a,p)=>a+(p.total-(p.envio||0)),0);
-  const efectivoEsperado = total - mp - totalTransfManuales - totalSalidas;
+  // Efectivo = total ventas - transferencias manuales - salidas
+  // MP NO se descuenta aquí, es solo informativo
+  const efectivoEsperado = total - totalTransfManuales - totalSalidas;
   const elSalidas = document.getElementById('salidas-total');
   const elEfectivo = document.getElementById('efectivo-esperado');
   if(elSalidas) elSalidas.textContent = '- ' + fmt(totalSalidas);
@@ -2273,7 +2303,8 @@ async function cerrarCaja(){
   const ef = total - mp;
   const totalSalidas = salidasCaja.reduce((a,s)=>a+(s.monto||0),0);
   const totalTransfs = transfsHoy.reduce((a,t)=>a+t.monto,0);
-  const efectivoEsperado = total - mp - totalTransfs - totalSalidas;
+  // Efectivo = total ventas - transferencias manuales - salidas (MP es solo referencia)
+  const efectivoEsperado = total - totalTransfs - totalSalidas;
   const mpReal = mpPagosHoy.reduce((a,p)=>a+p.monto,0);
   const fecha = new Date().toLocaleDateString('es-AR');
   const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
@@ -2288,16 +2319,29 @@ async function cerrarCaja(){
   });
   sv('gio_cierres', cierres);
 
-  // Resetear todo al cerrar caja
+  // Parar realtime y polling para que no recarguen datos viejos
+  if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
+  if(_mpInterval){ clearInterval(_mpInterval); _mpInterval=null; }
+  if(_pollInterval){ clearInterval(_pollInterval); _pollInterval=null; }
+  if(window._deliveryPollInterval){ clearInterval(window._deliveryPollInterval); window._deliveryPollInterval=null; }
+
+  // Resetear todo en memoria y storage
   pedidos = [];
   salidasCaja = [];
   transfsHoy = [];
   mpPagosHoy = [];
+  mpAlertMostrado = new Set();
   sv('gio_num', 1);
   sv('gio_transfs_hoy', []);
+  const ahoraISO = new Date().toISOString();
+  sv('gio_ultimo_cierre', ahoraISO); // marca de tiempo del último cierre
+  window._cajaAbiertaDesde = new Date(); // actualizar en memoria también
 
   actualizarNumPedido();
   actualizarVentasHoy();
+
+  // Reiniciar realtime y MP desde cero (sin datos viejos)
+  setTimeout(()=>{ iniciarRealtime(); iniciarCheckMP(); }, 1500);
 
   toast('✓ Caja cerrada — ' + fecha);
   goTab('cierres');
